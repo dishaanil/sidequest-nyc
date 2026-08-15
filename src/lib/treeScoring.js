@@ -1,4 +1,5 @@
 import { pointToRouteDistanceMeters, routeBoundingBox } from "./geo";
+import { fetchJsonWithRetry } from "./httpRetry";
 
 // 2015 Street Tree Census — a snapshot (not live), separate lat/long columns.
 const TREE_DATASET_ID = "uvpi-gqnh";
@@ -23,9 +24,7 @@ export async function scoreRouteForTrees(routeCoords) {
   url.searchParams.set("$where", where);
   url.searchParams.set("$limit", "5000");
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Tree Census query failed: ${res.status}`);
-  const rows = await res.json();
+  const rows = await fetchJsonWithRetry(url.toString());
 
   const midLat = (bbox.minLat + bbox.maxLat) / 2;
   const midLng = (bbox.minLng + bbox.maxLng) / 2;
