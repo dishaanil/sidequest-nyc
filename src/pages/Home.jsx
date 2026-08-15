@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import { explainRouteChoice } from "@/lib/explainRoute";
 import { getVariantLabels } from "@/lib/variantLabels";
 import { positionAlongRouteFraction } from "@/lib/geo";
 import { resolveStopPositionFraction, computeIdealStopPoint } from "@/lib/stopPosition";
+import { getStopEmoji } from "@/lib/stopEmoji";
 
 const METERS_PER_MILE = 1609.34;
 const NL_SUPPORTED_STOP_TYPES = ["coffee", "library"]; // matches stopFinder.js's FINDERS keys
