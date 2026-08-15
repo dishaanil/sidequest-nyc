@@ -594,13 +594,14 @@ export default function Home() {
                       <p className="text-sm text-slate-700">
                         <strong>{(v.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi</strong>
                         {" — "}
-                        <strong style={{ color: meta.color }}>{score}/100</strong> {meta.label.split(" ").pop().toLowerCase()}
+                        <strong style={{ color: meta.color }}>{score}/100</strong> score
                       </p>
                       <p className="text-xs text-slate-500">{evidence}</p>
                     </CardContent>
                   </Card>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
         )}
