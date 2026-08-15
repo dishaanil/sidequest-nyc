@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { TreePine } from "lucide-react";
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -55,7 +56,7 @@ function Spinner({ className = "" }) {
 const VARIANT_META = {
   greenest: { color: "#16a34a", scoreKey: "greeneryScore" },
   scenic: { color: "#a855f7", scoreKey: "scenicScore" },
-  efficient: { color: "#2563eb", scoreKey: "runningQualityScore" },
+  efficient: { color: "#c2703d", scoreKey: "runningQualityScore" },
 };
 const VARIANT_ORDER = ["greenest", "scenic", "efficient"];
 const LOW_RUNNING_QUALITY_THRESHOLD = 40;
@@ -181,7 +182,7 @@ function StatTile({ label, value, suffix, evidence, color }) {
 const MINI_SCORE_ITEMS = [
   { key: "greeneryScore", label: "Green", color: "#16a34a" },
   { key: "scenicScore", label: "Scenic", color: "#a855f7" },
-  { key: "runningQualityScore", label: "RunQ", color: "#2563eb" },
+  { key: "runningQualityScore", label: "RunQ", color: "#c2703d" },
 ];
 
 /**
