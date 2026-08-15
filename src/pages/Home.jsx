@@ -449,6 +449,16 @@ function RouteMarkers({ result }) {
   );
 }
 
+/** [[minLat,minLng],[maxLat,maxLng]] bounding box of a path, for fitBounds framing. */
+function boundsFromPath(path) {
+  const lats = path.map((p) => p[0]);
+  const lngs = path.map((p) => p[1]);
+  return [
+    [Math.min(...lats), Math.min(...lngs)],
+    [Math.max(...lats), Math.max(...lngs)],
+  ];
+}
+
 // Presentational-only mock data for the "Your Runs" dashboard section --
 // fabricated history, not backed by any real run/save logic. Coordinates are
 // hand-picked small loops near each named NYC location, not generated from
@@ -544,8 +554,8 @@ function PastRunCard({ run }) {
     <Card className="flex flex-col overflow-hidden border-stone-200 shadow-sm">
       <div className="h-[140px] w-full">
         <MapContainer
-          center={run.center}
-          zoom={14}
+          bounds={run.bounds}
+          boundsOptions={{ padding: [14, 14] }}
           className="h-full w-full"
           dragging={false}
           scrollWheelZoom={false}
@@ -569,6 +579,12 @@ function PastRunCard({ run }) {
           </span>
           <span className="text-xs text-stone-400">{run.scoreLabel}</span>
         </div>
+        {run.stop && (
+          <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 w-fit">
+            <span className="text-xs leading-none">{run.stop.emoji}</span>
+            <span className="text-[11px] text-amber-900">{run.stop.label}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
