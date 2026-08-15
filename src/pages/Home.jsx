@@ -93,6 +93,30 @@ function runningQualityEvidence(b, distanceMeters, targetMeters) {
   return `${mi}mi actual vs ${targetMi}mi requested (${b.evidence.distanceDeviationPct}% off target).`;
 }
 
+const POSITION_CATEGORY_LABEL = {
+  early: "early in",
+  middle: "the middle of",
+  late: "near the end of",
+};
+
+/**
+ * Explains which POI got picked as the sidequest stop and why, in terms of
+ * its actual measured position along the winning route (via
+ * positionAlongRouteFraction) versus the target position that drove the
+ * search -- and whether that target came from the user's own phrasing or
+ * the stop type's default. Deterministic, not LLM-generated.
+ */
+function describeStopPlacement(result, winnerRoute) {
+  if (!result.stop || !result.stopPlacement) return null;
+  const { category, fraction, source } = result.stopPlacement;
+  const targetPct = Math.round(fraction * 100);
+  const actualPct = Math.round(positionAlongRouteFraction(result.stop.lat, result.stop.lng, winnerRoute.coords) * 100);
+  const kind = result.stop.typeLabel || result.stopSource?.split(":")[1] || "stop";
+  const reason = source === "explicit" ? "per how you described it" : `the default for a ${kind} stop`;
+  const positionPhrase = POSITION_CATEGORY_LABEL[category] || "the middle of";
+  return `${result.stop.name} was picked because it sits ${positionPhrase} the route (targeting ~${targetPct}%, landed at ${actualPct}% of the way through) — ${reason}.`;
+}
+
 /** Big number + label + one-line evidence, used for all three headline scores. */
 function ScoreTile({ label, score, evidence, color }) {
   return (
