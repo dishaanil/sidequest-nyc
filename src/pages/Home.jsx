@@ -510,11 +510,14 @@ function boundsFromPath(path) {
 }
 
 // Presentational-only mock data for the "Your Runs" dashboard section --
-// fabricated history, not backed by any real run/save logic. Coordinates are
-// hand-picked small loops near each named NYC location, not generated from
-// real routing, purely to give each thumbnail a plausible-looking path. Only
-// two of the four include a `stop`, on purpose -- sidequests are optional,
-// so the history should show plain scenic runs alongside ones with a stop.
+// fabricated history, not backed by any real run/save logic. `shape` is a
+// small set of hand-picked control points giving each run's rough footprint
+// near its named NYC location; `streetify` turns that into a longer,
+// irregular, street-grid-following line (like the real Mapbox-generated
+// polylines used elsewhere in the app) instead of a clean drawn polygon.
+// Only two of the four include a `stop`, on purpose -- sidequests are
+// optional, so the history should show plain scenic runs alongside ones
+// with a stop.
 const PAST_RUNS = [
   {
     id: "prospect-park-loop",
@@ -526,7 +529,8 @@ const PAST_RUNS = [
     score: 88,
     color: "#16a34a",
     stop: { emoji: "🛒", label: "Grocery stop" },
-    path: [
+    seed: 101,
+    shape: [
       [40.6602, -73.969],
       [40.6625, -73.9702],
       [40.6633, -73.9673],
@@ -545,7 +549,8 @@ const PAST_RUNS = [
     score: 91,
     color: "#a855f7",
     stop: null,
-    path: [
+    seed: 202,
+    shape: [
       [40.7045, -73.973],
       [40.7085, -73.9722],
       [40.7125, -73.9715],
@@ -563,7 +568,8 @@ const PAST_RUNS = [
     score: 79,
     color: "#16a34a",
     stop: null,
-    path: [
+    seed: 303,
+    shape: [
       [40.7845, -73.9635],
       [40.786, -73.966],
       [40.7885, -73.965],
@@ -582,7 +588,8 @@ const PAST_RUNS = [
     score: 85,
     color: "#a855f7",
     stop: { emoji: "💊", label: "Pharmacy stop" },
-    path: [
+    seed: 404,
+    shape: [
       [40.732, -74.005],
       [40.7345, -74.006],
       [40.736, -74.003],
@@ -591,7 +598,10 @@ const PAST_RUNS = [
       [40.732, -74.005],
     ],
   },
-].map((run) => ({ ...run, bounds: boundsFromPath(run.path) }));
+].map((run) => {
+  const path = streetify(run.shape, run.seed);
+  return { ...run, path, bounds: boundsFromPath(path) };
+});
 
 /**
  * Compact card for a past run in the "Your Runs" dashboard section --
