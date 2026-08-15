@@ -2,13 +2,17 @@
 // accuracy bottoms out at 0. 10% deviation (the max tolerance) still scores
 // 0.75 before flooring.
 const DISTANCE_SATURATION = 0.4;
-// Minimum distance multiplier even at total distance mismatch. Not a literal
-// 0: if every candidate in a batch is equally off-target (the tolerance
-// widened to "none" fallback), a hard floor of 0 would tie every composite
-// score at exactly 0 and make the "winner" an arbitrary sort artifact.
-// 0.1 keeps scenery meaningful as a tiebreaker in that degenerate case while
-// still making distance the dominant factor everywhere else.
-const DISTANCE_FLOOR = 0.1;
+
+// Multiplicative floors. Composite = sceneryScore * distanceFactor, and a
+// hard 0 on either side of a multiplication zeroes the whole product — which
+// is correct for "way off target" but wrong for "happened to have the
+// lowest tree count in this particular batch." Both factors get a small
+// floor instead of touching literal 0, and the floors are deliberately
+// asymmetric: distance's is much smaller than scenery's, so severe distance
+// error still dominates ordinary scenery-ranking noise rather than the two
+// floors coincidentally cancelling out.
+const SCENERY_FLOOR = 0.15;
+const DISTANCE_FLOOR = 0.05;
 
 const SCENERY_WEIGHTS_BY_PREFERENCE = {
   greenery: { trees: 0.7, landmarks: 0.15, waterfront: 0.15 },
@@ -18,16 +22,18 @@ const SCENERY_WEIGHTS_BY_PREFERENCE = {
 };
 
 /**
- * Min-max normalizes a batch of values to 0-1, relative to this batch only.
- * If every value is tied, all get 1 (tied-and-present) or 0 (tied-at-zero) —
- * either way the tie contributes the same constant to every candidate, so it
- * never affects which candidate wins; it just keeps the displayed score sane.
+ * Min-max normalizes a batch of values to SCENERY_FLOOR..1, relative to
+ * this batch only. Floored rather than a literal 0-1 range: composite
+ * scoring multiplies this by a distance factor, and a hard 0 here would
+ * permanently zero out a candidate just for being the batch's worst on one
+ * metric, regardless of how accurate its distance is.
  */
-function normalize(values) {
+function normalize(values, floor = SCENERY_FLOOR) {
   const max = Math.max(...values);
   const min = Math.min(...values);
   const range = max - min;
-  return values.map((v) => (range > 0 ? (v - min) / range : max > 0 ? 1 : 0));
+  if (range === 0) return values.map(() => (max > 0 ? 1 : floor));
+  return values.map((v) => floor + (1 - floor) * ((v - min) / range));
 }
 
 /** 1.0 at the exact target distance, decaying to 0 by DISTANCE_SATURATION deviation. Absolute, not batch-relative — being off-target is a real penalty even if every candidate is off-target. */
@@ -44,9 +50,9 @@ function distanceFactor(accuracy) {
 /**
  * Ranks already-scored candidates (each with treeScore.treeCount,
  * scenicScore.{landmarkCount,waterfrontCount}, and route.distanceMeters) by
- * a single composite score: normalize each scenery metric 0-1 across this
- * batch, weight by preference_emphasis into one 0-1 scenery score, then
- * MULTIPLY by a distance-accuracy factor (not add) — so a candidate whose
+ * a single composite score: normalize each scenery metric batch-relative
+ * (floored, see above) into one 0-1 scenery score per preference_emphasis,
+ * then MULTIPLY by a distance-accuracy factor — so a candidate whose
  * distance is way off the target has its whole score dragged down
  * regardless of how good its scenery is, instead of just losing a fixed
  * slice of an additive budget. Falls back to "balanced" weights for an
@@ -77,7 +83,7 @@ export function rankByComposite(scoredCandidates, preferenceEmphasis, targetDist
   return {
     ranked,
     winner: ranked[0],
-    weights: { ...weights, distanceFloor: DISTANCE_FLOOR },
+    weights: { ...weights, sceneryFloor: SCENERY_FLOOR, distanceFloor: DISTANCE_FLOOR },
     preferenceEmphasis: preferenceEmphasis || "balanced",
   };
 }
