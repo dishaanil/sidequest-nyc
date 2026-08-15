@@ -1,4 +1,4 @@
-import { destinationPoint, haversineDistance, pointToRouteDistanceMeters, routeLengthMeters } from "./geo";
+import { destinationPoint, haversineDistance, pointToRouteDistanceMeters, sampleAlongRoute } from "./geo";
 import { getWalkingRoute } from "./mapboxApi";
 import { getDirectionalBias } from "./directionalBias";
 import { mapWithConcurrency } from "./concurrency";
@@ -44,29 +44,6 @@ export function filterByTolerance(results, targetDistanceMeters) {
   if (max.length > 0) return { candidates: max, tolerance: "max" };
 
   return { candidates: results, tolerance: "none" };
-}
-
-/** Evenly resamples a route polyline to n points by cumulative distance. */
-function sampleAlongRoute(coords, n) {
-  if (coords.length <= n) return coords;
-  const total = routeLengthMeters(coords);
-  const step = total / (n - 1);
-  const samples = [coords[0]];
-  let acc = 0;
-  let targetDist = step;
-  for (let i = 1; i < coords.length && samples.length < n - 1; i++) {
-    const [lng1, lat1] = coords[i - 1];
-    const [lng2, lat2] = coords[i];
-    const segLen = haversineDistance(lat1, lng1, lat2, lng2);
-    while (acc + segLen >= targetDist && samples.length < n - 1) {
-      const t = segLen === 0 ? 0 : (targetDist - acc) / segLen;
-      samples.push([lng1 + (lng2 - lng1) * t, lat1 + (lat2 - lat1) * t]);
-      targetDist += step;
-    }
-    acc += segLen;
-  }
-  samples.push(coords[coords.length - 1]);
-  return samples;
 }
 
 function overlapFraction(coordsA, coordsB, refLat, refLng) {
