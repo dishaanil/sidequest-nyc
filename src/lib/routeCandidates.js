@@ -114,14 +114,23 @@ export function dedupeCandidates(candidates) {
  * genuinely greenery- or scenery-directed, not just blindly rotated) plus an
  * even 8-way spread for balanced/efficient coverage.
  */
-async function generateLoopCandidates(start, targetDistanceMeters, stop) {
+async function generateLoopCandidates(start, targetDistanceMeters, stop, stopPositionFraction = 0.5) {
   const legRadius = targetDistanceMeters / 3;
   const biased = await biasedBearingsAround(start, legRadius);
   const bearings = buildBearingList(biased);
 
+  // A loop only has two legs to place a required stop on: the first (start
+  // straight out to "a") or the second ("b" back toward start). fraction<=0.5
+  // (early/middle) puts it on the first leg as before; fraction>0.5 (late)
+  // puts it on the second leg instead, so a stop targeted near the end of
+  // the run is actually visited near the end of the loop, not always first.
+  const stopOnSecondLeg = stop && stopPositionFraction > 0.5;
+
   const attempts = await mapWithConcurrency(bearings, ROUTE_FETCH_CONCURRENCY, async (bearing) => {
-    const a = stop ? { lat: stop.lat, lng: stop.lng } : destinationPoint(start.lat, start.lng, bearing, legRadius);
-    const b = destinationPoint(start.lat, start.lng, bearing + 130, legRadius);
+    const a =
+      stop && !stopOnSecondLeg ? { lat: stop.lat, lng: stop.lng } : destinationPoint(start.lat, start.lng, bearing, legRadius);
+    const b =
+      stop && stopOnSecondLeg ? { lat: stop.lat, lng: stop.lng } : destinationPoint(start.lat, start.lng, bearing + 130, legRadius);
     const chainPoints = [start, a, b, start];
     try {
       const route = await getWalkingRoute(chainPoints);
