@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { geocodeAddress } from "@/lib/mapboxApi";
 import { generateCandidateRoutes } from "@/lib/routeCandidates";
-import { scoreRouteForTrees } from "@/lib/treeScoring";
-import { scoreRouteForScenic } from "@/lib/scenicScoring";
+import { computeScoreBreakdown } from "@/lib/scoreBreakdown";
 import { findNearestStop } from "@/lib/stopFinder";
 import { parseNaturalLanguageRequest } from "@/lib/nlParser";
 import { rankByComposite } from "@/lib/compositeScoring";
@@ -28,9 +27,9 @@ const STATUS_LABEL = {
 };
 
 const VARIANT_META = {
-  greenest: { label: "Greenest", color: "#16a34a" },
-  scenic: { label: "Most Scenic", color: "#a855f7" },
-  efficient: { label: "Most Efficient", color: "#2563eb" },
+  greenest: { label: "Greenest", color: "#16a34a", scoreKey: "greeneryScore" },
+  scenic: { label: "Most Scenic", color: "#a855f7", scoreKey: "scenicScore" },
+  efficient: { label: "Most Efficient", color: "#2563eb", scoreKey: "runningQualityScore" },
 };
 const VARIANT_ORDER = ["greenest", "scenic", "efficient"];
 
@@ -62,51 +61,62 @@ function describeEnd(result) {
   return `ends near ${name}`;
 }
 
-/** One-sentence, data-grounded explanation for the composite-scored "Your Route" pick. */
-function winnerExplanation(result) {
-  const winner = result.composite.winner;
-  const pref = result.preferenceEmphasis;
-
-  let metricPhrase;
-  if (pref === "greenery") {
-    metricPhrase = `passes within ${winner.treeScore.bufferMeters}m of ${winner.treeScore.treeCount} trees`;
-  } else if (pref === "landmarks") {
-    metricPhrase = `passes within ${winner.scenicScore.bufferMeters}m of ${winner.scenicScore.landmarkCount} designated landmarks`;
-  } else if (pref === "waterfront") {
-    metricPhrase = `passes within ${winner.scenicScore.bufferMeters}m of ${winner.scenicScore.waterfrontCount} waterfront access points`;
-  } else {
-    metricPhrase = `passes within ${winner.treeScore.bufferMeters}m of ${winner.treeScore.treeCount} trees, ${winner.scenicScore.landmarkCount} landmarks, and ${winner.scenicScore.waterfrontCount} waterfront access points`;
-  }
-
-  const parts = [metricPhrase, describeStop(result), describeEnd(result)].filter(Boolean);
-  let sentence = joinParts(parts);
-
+/** Short intro sentence mentioning the stop/end and (for NL requests) what was asked for. */
+function introSentence(result) {
+  const parts = [describeStop(result), describeEnd(result)].filter(Boolean);
+  if (parts.length === 0) return null;
+  let s = joinParts(parts);
   if (result.inputMode === "nl") {
+    const pref = result.preferenceEmphasis;
     const stopKind = result.stopSource?.startsWith("stop_type:") ? result.stopSource.split(":")[1] : null;
     const reqPhrase = PREFERENCE_LABEL[pref] || "your requested route";
-    sentence += `, per your request for ${reqPhrase}${stopKind ? ` with a ${stopKind} stop` : ""}`;
+    s += `, per your request for ${reqPhrase}${stopKind ? ` with a ${stopKind} stop` : ""}`;
   }
-
-  return sentence + ".";
+  return s.charAt(0).toUpperCase() + s.slice(1) + ".";
 }
 
-const variantExplanation = (key, v, candidateCount) => {
-  if (key === "greenest") {
-    return `passes within ${v.treeScore.bufferMeters}m of ${v.treeScore.treeCount} trees, per the NYC 2015 Street Tree Census.`;
-  }
-  if (key === "scenic") {
-    return `passes within ${v.scenicScore.bufferMeters}m of ${v.scenicScore.landmarkCount} designated landmarks and ${v.scenicScore.waterfrontCount} waterfront access points.`;
-  }
-  return `the shortest of the ${candidateCount} candidate routes generated for this trip, picked without regard to scenery.`;
+function greeneryEvidence(b) {
+  return `calculated from ${b.evidence.treeCount} trees within ${b.evidence.treeBufferMeters}m (${b.evidence.treeDensityPer100m}/100m, vs a ${b.evidence.treeDensityReferencePer100m}/100m reference for a fully tree-lined block), ${b.evidence.parkExposurePct}% of route adjacent to park/green space.`;
+}
+function scenicEvidence(b) {
+  return `0.35×waterfront (${b.evidence.waterfrontExposurePct}% exposure) + 0.25×park (${b.evidence.parkExposurePct}%) + 0.20×landmark (${b.evidence.landmarkExposurePct}%) + 0.20×greenery (${b.greeneryScore}/100).`;
+}
+function runningQualityEvidence(b, distanceMeters, targetMeters) {
+  const mi = (distanceMeters / METERS_PER_MILE).toFixed(2);
+  const targetMi = (targetMeters / METERS_PER_MILE).toFixed(2);
+  return `${mi}mi actual vs ${targetMi}mi requested (${b.evidence.distanceDeviationPct}% off target).`;
+}
+
+/** Big number + label + one-line evidence, used for all three headline scores. */
+function ScoreTile({ label, score, evidence, color }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-3xl font-bold" style={{ color }}>
+          {score}
+        </span>
+        <span className="text-sm text-slate-500">/100</span>
+      </div>
+      <div className="text-xs font-medium text-slate-700">{label}</div>
+      <p className="text-xs text-slate-500">{evidence}</p>
+    </div>
+  );
+}
+
+const variantExplanation = (key, v) => {
+  if (key === "greenest") return greeneryEvidence(v.breakdown);
+  if (key === "scenic") return scenicEvidence(v.breakdown);
+  return null; // efficient uses runningQualityEvidence, which needs targetMeters from the caller
 };
 
 /**
  * Shared pipeline: geocode start, resolve an optional distinct `end` (which
  * makes the route genuinely point-to-point instead of a loop) and an
  * independent required `stop` (e.g. a coffee shop, "on the way" in either
- * shape), generate candidates, score them, and compute both the existing
- * Greenest/Scenic/Efficient picks and the composite-ranked winner. Used by
- * both input modes so neither duplicates this orchestration.
+ * shape), generate candidates, compute deterministic 0-100 score
+ * breakdowns from real NYC Open Data geometry, and pick both the existing
+ * Greenest/Scenic/Efficient variants and the composite-ranked winner. Used
+ * by both input modes so neither duplicates this orchestration.
  */
 async function runPipeline({ start: startQuery, end: endQuery, targetMeters, stopTypeRaw, preferenceEmphasis, setStatus }) {
   setStatus("geocoding");
@@ -179,16 +189,15 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
     2,
     async (c) => ({
       ...c,
-      treeScore: await scoreRouteForTrees(c.route.coords),
-      scenicScore: await scoreRouteForScenic(c.route.coords),
+      breakdown: await computeScoreBreakdown(c.route.coords, c.route.distanceMeters, targetMeters),
     }),
     250
   );
 
-  const greenest = [...scored].sort((a, b) => b.treeScore.treeCount - a.treeScore.treeCount)[0];
-  const scenic = [...scored].sort((a, b) => b.scenicScore.total - a.scenicScore.total)[0];
+  const greenest = [...scored].sort((a, b) => b.breakdown.greeneryScore - a.breakdown.greeneryScore)[0];
+  const scenic = [...scored].sort((a, b) => b.breakdown.scenicScore - a.breakdown.scenicScore)[0];
   const efficient = [...scored].sort((a, b) => a.route.distanceMeters - b.route.distanceMeters)[0];
-  const composite = rankByComposite(scored, preferenceEmphasis, targetMeters);
+  const composite = rankByComposite(scored, preferenceEmphasis);
 
   return {
     start,
@@ -196,6 +205,7 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
     stop,
     stopSource,
     notes,
+    targetMeters,
     candidateCount: candidates.length,
     candidates: scored,
     greenest,
@@ -330,6 +340,8 @@ export default function Home() {
     }
   };
 
+  const winner = result?.composite.winner;
+
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -434,10 +446,14 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {result && (
+        {result && winner && (
           <Card className="border-2 border-slate-900">
             <CardHeader>
               <CardTitle className="text-xl">Your Route</CardTitle>
+              <p className="text-sm text-slate-600">
+                <strong>{(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi</strong>
+                {introSentence(result) ? ` — ${introSentence(result)}` : "."}
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg overflow-hidden border border-slate-200 h-[400px]">
@@ -447,17 +463,32 @@ export default function Home() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                   <Polyline
-                    positions={result.composite.winner.route.coords.map(([lng, lat]) => [lat, lng])}
+                    positions={winner.route.coords.map(([lng, lat]) => [lat, lng])}
                     pathOptions={{ color: "#0f172a", weight: 5 }}
                   />
                   <RouteMarkers result={result} />
                 </MapContainer>
               </div>
-              <p className="text-base text-slate-800">
-                <strong>{(result.composite.winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi</strong>
-                {" — "}
-                {winnerExplanation(result)}
-              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+                <ScoreTile
+                  label="Greenery"
+                  score={winner.breakdown.greeneryScore}
+                  evidence={greeneryEvidence(winner.breakdown)}
+                  color="#16a34a"
+                />
+                <ScoreTile
+                  label="Scenic"
+                  score={winner.breakdown.scenicScore}
+                  evidence={scenicEvidence(winner.breakdown)}
+                  color="#a855f7"
+                />
+                <ScoreTile
+                  label="Running Quality"
+                  score={winner.breakdown.runningQualityScore}
+                  evidence={runningQualityEvidence(winner.breakdown, winner.route.distanceMeters, result.targetMeters)}
+                  color="#2563eb"
+                />
+              </div>
             </CardContent>
           </Card>
         )}
@@ -469,6 +500,11 @@ export default function Home() {
               {VARIANT_ORDER.map((key) => {
                 const v = result[key];
                 const meta = VARIANT_META[key];
+                const score = v.breakdown[meta.scoreKey];
+                const evidence =
+                  key === "efficient"
+                    ? runningQualityEvidence(v.breakdown, v.route.distanceMeters, result.targetMeters)
+                    : variantExplanation(key, v);
                 return (
                   <Card key={key}>
                     <CardHeader>
@@ -493,8 +529,9 @@ export default function Home() {
                       <p className="text-sm text-slate-700">
                         <strong>{(v.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi</strong>
                         {" — "}
-                        {variantExplanation(key, v, result.candidateCount)}
+                        <strong style={{ color: meta.color }}>{score}/100</strong> {meta.label.split(" ").pop().toLowerCase()}
                       </p>
+                      <p className="text-xs text-slate-500">{evidence}</p>
                     </CardContent>
                   </Card>
                 );
@@ -505,7 +542,7 @@ export default function Home() {
 
         {result && (
           <p className="text-xs text-slate-500">
-            Tree data is a 2015–2016 snapshot from NYC Open Data, not a live feed. Landmark and
+            Tree data is a 2015–2016 snapshot from NYC Open Data, not a live feed. Landmark, park, and
             waterfront-access data reflect current designations but may lag real-world changes
             slightly — actual conditions may differ.
           </p>
