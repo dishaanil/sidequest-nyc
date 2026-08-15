@@ -582,7 +582,7 @@ export default function Home() {
                   </button>
                 </div>
                 {nlParsed && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-stone-500">
                     Understood: start "{nlParsed.start}"
                     {nlParsed.end ? `, end "${nlParsed.end}"` : ", loop back to start"}
                     {`, ${nlParsed.distance_miles} mi`}
@@ -646,7 +646,7 @@ export default function Home() {
               </div>
             )}
 
-            {genError && <p className="text-sm text-red-600">{genError}</p>}
+            {genError && <p className="text-sm text-destructive">{genError}</p>}
             {result?.notes.map((n, i) => (
               <p key={i} className="text-xs text-amber-600">
                 {n}
