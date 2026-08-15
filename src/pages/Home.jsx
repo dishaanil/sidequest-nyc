@@ -174,11 +174,16 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
   }
 
   setStatus("scoring");
-  const scored = await mapWithConcurrency(candidates, 4, async (c) => ({
-    ...c,
-    treeScore: await scoreRouteForTrees(c.route.coords),
-    scenicScore: await scoreRouteForScenic(c.route.coords),
-  }));
+  const scored = await mapWithConcurrency(
+    candidates,
+    2,
+    async (c) => ({
+      ...c,
+      treeScore: await scoreRouteForTrees(c.route.coords),
+      scenicScore: await scoreRouteForScenic(c.route.coords),
+    }),
+    250
+  );
 
   const greenest = [...scored].sort((a, b) => b.treeScore.treeCount - a.treeScore.treeCount)[0];
   const scenic = [...scored].sort((a, b) => b.scenicScore.total - a.scenicScore.total)[0];
