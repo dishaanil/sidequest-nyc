@@ -11,6 +11,24 @@ const BEARING_MERGE_DEGREES = 10; // treat bearings this close together as redun
 const TOLERANCE_PREFERRED = 0.05;
 const TOLERANCE_MAX = 0.1;
 
+// A real street-grid walking route rarely exceeds ~1.4x the straight-line
+// distance of its waypoint chain, even on a diagonal path through Manhattan's
+// grid. A ratio beyond this is a strong signal the route was forced around an
+// obstacle it can't actually cross on foot (a river with no nearby bridge, a
+// highway, etc.) rather than following a plausible path -- e.g. a
+// waterfront-biased bearing that projects a waypoint across the Hudson into
+// NJ, which Mapbox will still "solve" by routing miles out of the way to the
+// nearest bridge. Candidates this circuitous are discarded outright, not
+// scored, so they can never win on scenery alone.
+const MAX_DETOUR_RATIO = 1.5;
+
+// Even in the "nothing hit even +/-10%" fallback, a route this far from the
+// requested distance isn't a reasonable "closest available" match -- it's a
+// sign no plausible route exists for this start/distance/preference
+// combination. Report infeasibility honestly instead of presenting it as a
+// real result.
+const MAX_ACCEPTABLE_FALLBACK_DEVIATION = 0.25;
+
 const DEDUP_OVERLAP_THRESHOLD = 0.8; // >80% shared geometry = near-duplicate
 const DEDUP_MATCH_METERS = 40; // how close two points need to be to count as "the same place"
 const DEDUP_SAMPLE_COUNT = 20;
@@ -44,6 +62,22 @@ export function filterByTolerance(results, targetDistanceMeters) {
   if (max.length > 0) return { candidates: max, tolerance: "max" };
 
   return { candidates: results, tolerance: "none" };
+}
+
+function chainDistanceMeters(points) {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    total += haversineDistance(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng);
+  }
+  return total;
+}
+
+/** True if a route's actual walking distance is plausible for the straight-line
+ *  waypoint chain that generated it -- see MAX_DETOUR_RATIO. */
+function isPlausibleDetour(route, chainPoints) {
+  const chain = chainDistanceMeters(chainPoints);
+  if (chain === 0) return true;
+  return route.distanceMeters / chain <= MAX_DETOUR_RATIO;
 }
 
 function overlapFraction(coordsA, coordsB, refLat, refLng) {
@@ -88,9 +122,11 @@ async function generateLoopCandidates(start, targetDistanceMeters, stop) {
   const attempts = await mapWithConcurrency(bearings, ROUTE_FETCH_CONCURRENCY, async (bearing) => {
     const a = stop ? { lat: stop.lat, lng: stop.lng } : destinationPoint(start.lat, start.lng, bearing, legRadius);
     const b = destinationPoint(start.lat, start.lng, bearing + 130, legRadius);
+    const chainPoints = [start, a, b, start];
     try {
-      const route = await getWalkingRoute([start, a, b, start]);
+      const route = await getWalkingRoute(chainPoints);
       if (!route) return null;
+      if (!isPlausibleDetour(route, chainPoints)) return null;
       return { bearing, route };
     } catch {
       return null;
@@ -148,6 +184,7 @@ async function generatePointToPointCandidates(start, end, targetDistanceMeters, 
     try {
       const route = await getWalkingRoute(points);
       if (!route) return null;
+      if (!isPlausibleDetour(route, points)) return null;
       return { bearing, route };
     } catch {
       return null;
@@ -202,8 +239,26 @@ export async function generateCandidateRoutes(start, targetDistanceMeters, stop 
 
   const { candidates, tolerance } = await generateLoopCandidates(start, targetDistanceMeters, stop);
 
-  if (tolerance === "none" && candidates.length > 0) {
+  if (candidates.length === 0) {
+    return { candidates: [], feasibility: { feasible: false, reason: "no_plausible_route" } };
+  }
+
+  if (tolerance === "none") {
     const bestDistanceMeters = Math.min(...candidates.map((c) => c.route.distanceMeters));
+    const bestDeviation = Math.abs(bestDistanceMeters - targetDistanceMeters) / targetDistanceMeters;
+
+    if (bestDeviation > MAX_ACCEPTABLE_FALLBACK_DEVIATION) {
+      return {
+        candidates: [],
+        feasibility: {
+          feasible: false,
+          reason: "no_plausible_route",
+          bestDistanceMeters,
+          bestDeviationPct: Math.round(bestDeviation * 1000) / 10,
+        },
+      };
+    }
+
     return {
       candidates,
       feasibility: {
