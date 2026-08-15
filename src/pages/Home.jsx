@@ -79,7 +79,7 @@ function greeneryEvidence(b) {
   return `calculated from ${b.evidence.treeCount} trees within ${b.evidence.treeBufferMeters}m (${b.evidence.treeDensityPer100m}/100m, vs a ${b.evidence.treeDensityReferencePer100m}/100m reference for a fully tree-lined block), ${b.evidence.parkExposurePct}% of route adjacent to park/green space.`;
 }
 function scenicEvidence(b) {
-  return `0.35×waterfront (${b.evidence.waterfrontExposurePct}% exposure) + 0.25×park (${b.evidence.parkExposurePct}%) + 0.20×landmark (${b.evidence.landmarkExposurePct}%) + 0.20×greenery (${b.greeneryScore}/100).`;
+  return `0.35×waterfront (${b.evidence.waterfrontExposurePct}% exposure) + 0.25×park (${b.evidence.parkExposurePct}%) + 0.20×landmark (${b.evidence.landmarkExposurePct}%) + 0.20×tree density (${b.components.greeneryForScenic}/100).`;
 }
 function runningQualityEvidence(b, distanceMeters, targetMeters) {
   const mi = (distanceMeters / METERS_PER_MILE).toFixed(2);
