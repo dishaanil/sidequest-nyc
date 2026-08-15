@@ -129,6 +129,19 @@ export default function Home() {
                   Greenery 🌳
                 </div>
               </div>
+              <div className="w-44 space-y-1.5">
+                <Label htmlFor="stop">Sidequest stop</Label>
+                <Select value={stopType} onValueChange={setStopType}>
+                  <SelectTrigger id="stop">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="coffee">Coffee ☕</SelectItem>
+                    <SelectItem value="library">Library 📚</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button type="submit" disabled={isLoading}>
                 {isLoading ? STATUS_LABEL[status] : "Generate route"}
               </Button>
