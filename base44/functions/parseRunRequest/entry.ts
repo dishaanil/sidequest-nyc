@@ -23,6 +23,12 @@ const NL_PARSE_SCHEMA = {
       description:
         "A short lowercase keyword for a requested stop along the way, e.g. 'coffee', 'library', 'grocery'. Null if no stop is mentioned.",
     },
+    stop_position_hint: {
+      type: ["string", "null"],
+      enum: ["early", "middle", "late", null],
+      description:
+        "Only set this if the user's phrasing implies WHERE along the route the stop should happen -- e.g. 'before I get home', 'near the end', 'on my way out', 'right after I start', 'early in my run'. Classify as 'early' (roughly the first 5-25% of the route), 'middle' (~50%), or 'late' (roughly the last 85-95%, e.g. right before returning home). Null if the user didn't express any position preference for the stop -- do NOT guess one just because a stop type was mentioned, since each stop type already has its own sensible default the caller applies when this is null.",
+    },
     preference_emphasis: {
       type: "string",
       enum: ["greenery", "landmarks", "waterfront", "balanced"],
@@ -30,7 +36,7 @@ const NL_PARSE_SCHEMA = {
         "Which scenery type the user emphasized. Use 'balanced' if no single preference is clearly emphasized.",
     },
   },
-  required: ["start", "end", "distance_miles", "stop_type", "preference_emphasis"],
+  required: ["start", "end", "distance_miles", "stop_type", "stop_position_hint", "preference_emphasis"],
 };
 
 const PROMPT_PREFIX = `You are parsing a natural-language request for a running route into structured trip parameters. Read the request carefully and extract exactly the fields in the schema. Use null for any field that truly isn't mentioned (except preference_emphasis, which defaults to "balanced" rather than null). Do not invent details the user didn't state.
