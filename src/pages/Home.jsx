@@ -13,6 +13,7 @@ import { scoreRouteForTrees } from "@/lib/treeScoring";
 import { scoreRouteForScenic } from "@/lib/scenicScoring";
 import { findNearestStop } from "@/lib/stopFinder";
 import { parseNaturalLanguageRequest } from "@/lib/nlParser";
+import { rankByComposite } from "@/lib/compositeScoring";
 
 const METERS_PER_MILE = 1609.34;
 const CANDIDATE_COUNT = 4;
@@ -143,7 +144,24 @@ export default function Home() {
         }))
       );
 
-      setNlScored({ start, waypoint, waypointSource, notes, candidates: scored });
+      // Same selection logic as the main form's Greenest/Scenic/Efficient
+      // variants (kept, not replaced) — plus the new composite ranking on top.
+      const greenest = [...scored].sort((a, b) => b.treeScore.treeCount - a.treeScore.treeCount)[0];
+      const scenic = [...scored].sort((a, b) => b.scenicScore.total - a.scenicScore.total)[0];
+      const efficient = [...scored].sort((a, b) => a.route.distanceMeters - b.route.distanceMeters)[0];
+      const composite = rankByComposite(scored, nlParsed.preference_emphasis);
+
+      setNlScored({
+        start,
+        waypoint,
+        waypointSource,
+        notes,
+        candidates: scored,
+        greenest,
+        scenic,
+        efficient,
+        composite,
+      });
       setNlWireStatus("done");
     } catch (err) {
       console.error(err);
