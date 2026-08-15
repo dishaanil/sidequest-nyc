@@ -540,16 +540,23 @@ export default function Home() {
   const winner = result?.composite.winner;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Sidequest</h1>
-          <p className="text-slate-600 text-sm">
-            Generate a running route scored against real NYC open data.
-          </p>
+    <div className="min-h-screen bg-background p-6 sm:p-10">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+            <TreePine className="h-6 w-6" strokeWidth={2.25} />
+          </div>
+          <div>
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+              Sidequest
+            </h1>
+            <p className="text-stone-500 text-sm">
+              Generate a running route scored against real NYC open data.
+            </p>
+          </div>
         </div>
 
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-stone-200 shadow-sm">
           <CardContent className="pt-8 pb-6 space-y-4">
             {inputMode === "nl" ? (
               <form onSubmit={handleGenerateNL} className="space-y-4">
