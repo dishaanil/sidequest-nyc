@@ -17,6 +17,7 @@ import { mapWithConcurrency } from "@/lib/concurrency";
 import { explainRouteChoice } from "@/lib/explainRoute";
 import { getVariantLabels } from "@/lib/variantLabels";
 import { positionAlongRouteFraction } from "@/lib/geo";
+import { resolveStopPositionFraction, computeIdealStopPoint } from "@/lib/stopPosition";
 
 const METERS_PER_MILE = 1609.34;
 const NL_SUPPORTED_STOP_TYPES = ["coffee", "library"]; // matches stopFinder.js's FINDERS keys
@@ -123,7 +124,7 @@ const variantExplanation = (key, v) => {
  * Greenest/Scenic/Efficient variants and the composite-ranked winner. Used
  * by both input modes so neither duplicates this orchestration.
  */
-async function runPipeline({ start: startQuery, end: endQuery, targetMeters, stopTypeRaw, preferenceEmphasis, setStatus }) {
+async function runPipeline({ start: startQuery, end: endQuery, targetMeters, stopTypeRaw, stopPositionHint, preferenceEmphasis, setStatus }) {
   setStatus("geocoding");
   const start = await geocodeAddress(startQuery);
 
@@ -141,13 +142,18 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
 
   let stop = null;
   let stopSource = null;
+  let stopPlacement = null;
   if (stopTypeRaw) {
     const normalized = stopTypeRaw.toLowerCase().trim();
     if (NL_SUPPORTED_STOP_TYPES.includes(normalized)) {
       setStatus("resolvingWaypoint");
-      stop = await findNearestStop(start, normalized);
+      stopPlacement = resolveStopPositionFraction(normalized, stopPositionHint);
+      const idealPoint = computeIdealStopPoint(start, end, targetMeters, stopPlacement.fraction);
+      stop = await findNearestStop(idealPoint, normalized);
       stopSource = stop ? `stop_type:${normalized}` : null;
-      if (!stop) notes.push(`No ${normalized} found near the start point; continuing without a stop.`);
+      if (!stop) {
+        notes.push(`No ${normalized} found near the ${stopPlacement.category} of the route; continuing without a stop.`);
+      }
     } else if (normalized !== "none") {
       notes.push(`Stop type "${stopTypeRaw}" isn't supported yet (only coffee/library); continuing without a stop.`);
     }
@@ -216,6 +222,7 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
     end,
     stop,
     stopSource,
+    stopPlacement,
     notes,
     targetMeters,
     candidateCount: candidates.length,
