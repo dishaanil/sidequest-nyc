@@ -421,6 +421,129 @@ function RouteMarkers({ result }) {
   );
 }
 
+// Presentational-only mock data for the "Your Runs" dashboard section --
+// fabricated history, not backed by any real run/save logic. Coordinates are
+// hand-picked small loops near each named NYC location, not generated from
+// real routing, purely to give each thumbnail a plausible-looking path.
+const PAST_RUNS = [
+  {
+    id: "prospect-park-loop",
+    name: "Prospect Park Loop",
+    distanceMi: 4.1,
+    relativeDate: "Yesterday",
+    scoreEmoji: "🌳",
+    scoreLabel: "Greenery",
+    score: 88,
+    color: "#16a34a",
+    center: [40.6602, -73.969],
+    path: [
+      [40.6602, -73.969],
+      [40.6625, -73.9702],
+      [40.6633, -73.9673],
+      [40.6608, -73.9652],
+      [40.6588, -73.9672],
+      [40.6602, -73.969],
+    ],
+  },
+  {
+    id: "east-river-greenway",
+    name: "East River Greenway",
+    distanceMi: 2.8,
+    relativeDate: "3 days ago",
+    scoreEmoji: "🌊",
+    scoreLabel: "Scenic",
+    score: 91,
+    color: "#a855f7",
+    center: [40.713, -73.9715],
+    path: [
+      [40.7045, -73.973],
+      [40.7085, -73.9722],
+      [40.7125, -73.9715],
+      [40.7165, -73.9705],
+      [40.7205, -73.9695],
+    ],
+  },
+  {
+    id: "central-park-reservoir",
+    name: "Central Park Reservoir",
+    distanceMi: 5.2,
+    relativeDate: "Last week",
+    scoreEmoji: "🌳",
+    scoreLabel: "Greenery",
+    score: 79,
+    color: "#16a34a",
+    center: [40.7865, -73.9625],
+    path: [
+      [40.7845, -73.9635],
+      [40.786, -73.966],
+      [40.7885, -73.965],
+      [40.789, -73.9615],
+      [40.7865, -73.96],
+      [40.7845, -73.9635],
+    ],
+  },
+  {
+    id: "west-village-historic",
+    name: "West Village Historic District",
+    distanceMi: 3.4,
+    relativeDate: "Last week",
+    scoreEmoji: "🏛️",
+    scoreLabel: "Scenic",
+    score: 85,
+    color: "#a855f7",
+    center: [40.7336, -74.0027],
+    path: [
+      [40.732, -74.005],
+      [40.7345, -74.006],
+      [40.736, -74.003],
+      [40.7345, -74.0005],
+      [40.732, -74.0015],
+      [40.732, -74.005],
+    ],
+  },
+];
+
+/**
+ * Compact card for a past run in the "Your Runs" dashboard section --
+ * mirrors the styling of the live result cards (rounded map thumbnail,
+ * font-heading title, muted stats line) but the map is non-interactive
+ * since it's a static historical snapshot, not something to pan/zoom.
+ */
+function PastRunCard({ run }) {
+  return (
+    <Card className="flex flex-col overflow-hidden border-stone-200 shadow-sm">
+      <div className="h-[140px] w-full">
+        <MapContainer
+          center={run.center}
+          zoom={14}
+          className="h-full w-full"
+          dragging={false}
+          scrollWheelZoom={false}
+          doubleClickZoom={false}
+          zoomControl={false}
+          attributionControl={false}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <Polyline positions={run.path} pathOptions={{ color: run.color, weight: 4 }} />
+        </MapContainer>
+      </div>
+      <CardContent className="px-3.5 py-3 space-y-1.5">
+        <div className="font-heading text-sm font-semibold text-foreground truncate">{run.name}</div>
+        <div className="text-xs text-stone-500">
+          {run.distanceMi.toFixed(1)} mi · {run.relativeDate}
+        </div>
+        <div className="flex items-center gap-1.5 pt-0.5">
+          <span className="text-sm leading-none">{run.scoreEmoji}</span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: run.color }}>
+            {run.score}
+          </span>
+          <span className="text-xs text-stone-400">{run.scoreLabel}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Home() {
   const [inputMode, setInputMode] = useState("nl"); // nl | form
 
