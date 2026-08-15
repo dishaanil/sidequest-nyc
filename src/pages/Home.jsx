@@ -436,6 +436,14 @@ export default function Home() {
 
   const isLoading = ["parsing", "geocoding", "resolvingWaypoint", "generating", "scoring", "explaining"].includes(genStatus);
 
+  const [exampleIndex, setExampleIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setExampleIndex((i) => (i + 1) % EXAMPLE_PROMPTS.length);
+    }, EXAMPLE_PROMPT_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
+
   const handleGenerateNL = async (e) => {
     e.preventDefault();
     setGenError(null);
