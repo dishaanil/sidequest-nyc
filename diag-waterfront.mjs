@@ -3,18 +3,17 @@ import { generateCandidateRoutes } from "./src/lib/routeCandidates.js";
 import { computeScoreBreakdown } from "./src/lib/scoreBreakdown.js";
 import { rankByComposite } from "./src/lib/compositeScoring.js";
 import { mapWithConcurrency } from "./src/lib/concurrency.js";
+import { haversineDistance } from "./src/lib/geo.js";
 
 const METERS_PER_MILE = 1609.34;
 
-function bbox(coords) {
-  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+function maxDistFromStart(coords, start) {
+  let max = 0;
   for (const [lng, lat] of coords) {
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
-    if (lng < minLng) minLng = lng;
-    if (lng > maxLng) maxLng = lng;
+    const d = haversineDistance(start.lat, start.lng, lat, lng);
+    if (d > max) max = d;
   }
-  return { minLat, maxLat, minLng, maxLng };
+  return max;
 }
 
 async function main() {
@@ -25,12 +24,12 @@ async function main() {
   const { candidates, feasibility } = await generateCandidateRoutes(start, targetMeters, null, null);
   console.log("feasibility:", feasibility);
   console.log("candidate count:", candidates.length);
+  console.log(`target=${(targetMeters / METERS_PER_MILE).toFixed(2)}mi legRadius=${(targetMeters / 3).toFixed(0)}m\n`);
 
   for (const c of candidates) {
-    const bb = bbox(c.route.coords);
-    const crossesHudson = bb.minLng < -74.02;
+    const maxDist = maxDistFromStart(c.route.coords, start);
     console.log(
-      `bearing=${c.bearing} dist=${(c.route.distanceMeters / METERS_PER_MILE).toFixed(2)}mi bbox.minLng=${bb.minLng.toFixed(4)} bbox.maxLat=${bb.maxLat.toFixed(4)} bbox.minLat=${bb.minLat.toFixed(4)} POSSIBLE_NJ_CROSSING=${crossesHudson}`
+      `bearing=${c.bearing} routeDist=${(c.route.distanceMeters / METERS_PER_MILE).toFixed(2)}mi maxDistFromStart=${maxDist.toFixed(0)}m ratio_maxDist/target=${(maxDist / targetMeters).toFixed(2)}`
     );
   }
 
@@ -45,14 +44,14 @@ async function main() {
   const winner = composite.winner;
   console.log("\nWINNER:");
   console.log("distanceMeters:", winner.route.distanceMeters, "=", (winner.route.distanceMeters / METERS_PER_MILE).toFixed(2), "mi");
-  console.log("scenicScore:", winner.breakdown.scenicScore, "greeneryScore:", winner.breakdown.greeneryScore, "runningQualityScore:", winner.breakdown.runningQualityScore);
-  console.log("bbox:", bbox(winner.route.coords));
+  console.log("maxDistFromStart:", maxDistFromStart(winner.route.coords, start).toFixed(0), "m");
+  console.log("scenicScore:", winner.breakdown.scenicScore, "waterfrontScore:", winner.breakdown.components.waterfrontScore, "greeneryScore:", winner.breakdown.greeneryScore, "runningQualityScore:", winner.breakdown.runningQualityScore);
   console.log("compositeScore:", winner.compositeScore);
 
   console.log("\nAll scored candidates (sorted by composite):");
   composite.ranked.forEach((c, i) => {
     console.log(
-      `${i + 1}. bearing=${c.bearing} dist=${(c.route.distanceMeters / METERS_PER_MILE).toFixed(2)}mi scenic=${c.breakdown.scenicScore} rq=${c.breakdown.runningQualityScore} composite=${c.compositeScore.toFixed(3)} bbox.minLng=${bbox(c.route.coords).minLng.toFixed(4)}`
+      `${i + 1}. bearing=${c.bearing} dist=${(c.route.distanceMeters / METERS_PER_MILE).toFixed(2)}mi scenic=${c.breakdown.scenicScore} waterfront=${c.breakdown.components.waterfrontScore} rq=${c.breakdown.runningQualityScore} composite=${c.compositeScore.toFixed(3)} maxDistFromStart=${maxDistFromStart(c.route.coords, start).toFixed(0)}m`
     );
   });
 }
