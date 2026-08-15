@@ -14,6 +14,7 @@ import { scoreRouteForScenic } from "@/lib/scenicScoring";
 import { findNearestStop } from "@/lib/stopFinder";
 import { parseNaturalLanguageRequest } from "@/lib/nlParser";
 import { rankByComposite } from "@/lib/compositeScoring";
+import { mapWithConcurrency } from "@/lib/concurrency";
 
 const METERS_PER_MILE = 1609.34;
 const NL_SUPPORTED_STOP_TYPES = ["coffee", "library"]; // matches stopFinder.js's FINDERS keys
@@ -173,13 +174,11 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
   }
 
   setStatus("scoring");
-  const scored = await Promise.all(
-    candidates.map(async (c) => ({
-      ...c,
-      treeScore: await scoreRouteForTrees(c.route.coords),
-      scenicScore: await scoreRouteForScenic(c.route.coords),
-    }))
-  );
+  const scored = await mapWithConcurrency(candidates, 4, async (c) => ({
+    ...c,
+    treeScore: await scoreRouteForTrees(c.route.coords),
+    scenicScore: await scoreRouteForScenic(c.route.coords),
+  }));
 
   const greenest = [...scored].sort((a, b) => b.treeScore.treeCount - a.treeScore.treeCount)[0];
   const scenic = [...scored].sort((a, b) => b.scenicScore.total - a.scenicScore.total)[0];
