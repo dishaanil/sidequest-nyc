@@ -350,6 +350,12 @@ export default function Home() {
                         {n}
                       </p>
                     ))}
+                    <p className="text-xs text-slate-600">
+                      preference_emphasis: <strong>{nlScored.composite.preferenceEmphasis}</strong> — weights used:
+                      trees {nlScored.composite.weights.trees.toFixed(2)}, landmarks{" "}
+                      {nlScored.composite.weights.landmarks.toFixed(2)}, waterfront{" "}
+                      {nlScored.composite.weights.waterfront.toFixed(2)}
+                    </p>
                     <div className="overflow-x-auto">
                       <table className="text-xs w-full border-collapse">
                         <thead>
@@ -366,30 +372,58 @@ export default function Home() {
                             <th className="py-1 pr-3">
                               Waterfront (≤{nlScored.candidates[0]?.scenicScore.bufferMeters}m)
                             </th>
+                            <th className="py-1 pr-3">Composite</th>
+                            <th className="py-1 pr-3">Picks</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {nlScored.candidates.map((c, i) => (
-                            <tr key={i} className="border-b border-slate-100">
-                              <td className="py-1 pr-3">{i + 1}</td>
-                              <td className="py-1 pr-3">{c.bearing}°</td>
-                              <td className="py-1 pr-3">{(c.route.distanceMeters / METERS_PER_MILE).toFixed(2)}</td>
-                              <td className="py-1 pr-3">{c.treeScore.treeCount}</td>
-                              <td className="py-1 pr-3">{c.scenicScore.landmarkCount}</td>
-                              <td className="py-1 pr-3">{c.scenicScore.waterfrontCount}</td>
-                            </tr>
-                          ))}
+                          {nlScored.candidates.map((c, i) => {
+                            const ranked = nlScored.composite.ranked.find((r) => r.bearing === c.bearing);
+                            const picks = [];
+                            if (c.bearing === nlScored.greenest.bearing) picks.push("Greenest");
+                            if (c.bearing === nlScored.scenic.bearing) picks.push("Scenic");
+                            if (c.bearing === nlScored.efficient.bearing) picks.push("Efficient");
+                            const isWinner = c.bearing === nlScored.composite.winner.bearing;
+                            if (isWinner) picks.push("★ Your Route");
+                            return (
+                              <tr
+                                key={i}
+                                className={`border-b border-slate-100 ${isWinner ? "bg-amber-50 font-medium" : ""}`}
+                              >
+                                <td className="py-1 pr-3">{i + 1}</td>
+                                <td className="py-1 pr-3">{c.bearing}°</td>
+                                <td className="py-1 pr-3">{(c.route.distanceMeters / METERS_PER_MILE).toFixed(2)}</td>
+                                <td className="py-1 pr-3">{c.treeScore.treeCount}</td>
+                                <td className="py-1 pr-3">{c.scenicScore.landmarkCount}</td>
+                                <td className="py-1 pr-3">{c.scenicScore.waterfrontCount}</td>
+                                <td className="py-1 pr-3">{ranked.compositeScore.toFixed(3)}</td>
+                                <td className="py-1 pr-3">{picks.join(", ")}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
+                    <p className="text-sm text-slate-700">
+                      <strong>Your Route</strong> (highest composite score): bearing{" "}
+                      {nlScored.composite.winner.bearing}°,{" "}
+                      {(nlScored.composite.winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi, composite{" "}
+                      {nlScored.composite.winner.compositeScore.toFixed(3)}.
+                    </p>
                     <pre className="text-xs bg-slate-100 rounded-md p-3 overflow-x-auto">
                       {JSON.stringify(
-                        nlScored.candidates.map((c) => ({
+                        nlScored.composite.ranked.map((c) => ({
                           bearing: c.bearing,
                           distanceMeters: Math.round(c.route.distanceMeters),
                           treeCount: c.treeScore.treeCount,
                           landmarkCount: c.scenicScore.landmarkCount,
                           waterfrontCount: c.scenicScore.waterfrontCount,
+                          normalized: {
+                            trees: Number(c.normalized.trees.toFixed(3)),
+                            landmarks: Number(c.normalized.landmarks.toFixed(3)),
+                            waterfront: Number(c.normalized.waterfront.toFixed(3)),
+                          },
+                          compositeScore: Number(c.compositeScore.toFixed(3)),
                         })),
                         null,
                         2
