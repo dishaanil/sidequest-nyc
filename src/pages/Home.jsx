@@ -348,6 +348,7 @@ export default function Home() {
         end: parsed.end,
         targetMeters,
         stopTypeRaw: parsed.stop_type,
+        stopPositionHint: parsed.stop_position_hint,
         preferenceEmphasis: parsed.preference_emphasis,
         setStatus: setGenStatus,
       });
@@ -388,6 +389,7 @@ export default function Home() {
         end: null,
         targetMeters,
         stopTypeRaw: stopType === "none" ? null : stopType,
+        stopPositionHint: null,
         preferenceEmphasis: "balanced",
         setStatus: setGenStatus,
       });
