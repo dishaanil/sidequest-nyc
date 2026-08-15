@@ -174,6 +174,15 @@ export default function Home() {
                     >
                       <Popup>Start / End</Popup>
                     </CircleMarker>
+                    {result.stop && (
+                      <CircleMarker
+                        center={[result.stop.lat, result.stop.lng]}
+                        radius={8}
+                        pathOptions={{ color: "#d97706", fillColor: "#d97706", fillOpacity: 1 }}
+                      >
+                        <Popup>{result.stop.name || result.stop.typeLabel}</Popup>
+                      </CircleMarker>
+                    )}
                     {result.score.trees.slice(0, 400).map((t, i) => (
                       <CircleMarker
                         key={i}
@@ -207,6 +216,13 @@ export default function Home() {
                 <strong>{result.score.treeCount} trees</strong>, per the NYC 2015 Street Tree
                 Census — the best of {result.candidateCount} candidate routes generated for this
                 trip.
+                {result.stop && (
+                  <>
+                    {" "}
+                    It routes through <strong>{result.stop.name || result.stop.typeLabel}</strong>{" "}
+                    as your requested {result.stop.typeLabel} stop.
+                  </>
+                )}
               </p>
               <p className="text-xs text-slate-500">
                 Tree data is a 2015–2016 snapshot from NYC Open Data, not a live feed — actual
