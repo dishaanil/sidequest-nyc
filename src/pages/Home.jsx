@@ -50,8 +50,14 @@ export default function Home() {
       setStatus("geocoding");
       const start = await geocodeAddress(address);
 
+      let stop = null;
+      if (stopType !== "none") {
+        setStatus("findingStop");
+        stop = await findNearestStop(start, stopType);
+      }
+
       setStatus("generating");
-      const candidates = await generateCandidateRoutes(start, targetMeters, 4);
+      const candidates = await generateCandidateRoutes(start, targetMeters, 4, stop);
       if (candidates.length === 0) {
         throw new Error("Couldn't generate any walking routes from that starting point.");
       }
@@ -72,6 +78,7 @@ export default function Home() {
         route: best.route,
         score: best.score,
         candidateCount: candidates.length,
+        stop,
       });
       setStatus("done");
     } catch (err) {
