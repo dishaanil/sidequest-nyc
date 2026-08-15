@@ -168,13 +168,16 @@ function StatTile({ label, value, suffix, evidence, color }) {
   return (
     <div className="space-y-1">
       <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-bold tabular-nums" style={color ? { color } : undefined}>
+        <span
+          className="font-heading text-3xl font-bold tabular-nums"
+          style={color ? { color } : { color: "hsl(var(--foreground))" }}
+        >
           {value}
         </span>
-        {suffix && <span className="text-sm text-slate-400">{suffix}</span>}
+        {suffix && <span className="text-sm text-stone-400">{suffix}</span>}
       </div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      {evidence && <p className="text-xs text-slate-400 leading-snug">{evidence}</p>}
+      <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</div>
+      {evidence && <p className="text-xs text-stone-400 leading-snug">{evidence}</p>}
     </div>
   );
 }
@@ -729,13 +732,13 @@ export default function Home() {
               )}
 
               {result.whyExplanation && (
-                <div className="flex gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
+                <div className="flex gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
                   <span className="text-lg leading-none mt-0.5">💡</span>
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700 mb-1">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-1">
                       Why Sidequest chose this
                     </div>
-                    <p className="text-sm text-indigo-900">{result.whyExplanation}</p>
+                    <p className="text-sm text-emerald-900">{result.whyExplanation}</p>
                   </div>
                 </div>
               )}
