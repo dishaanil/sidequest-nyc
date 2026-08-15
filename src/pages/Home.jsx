@@ -228,6 +228,12 @@ export default function Home() {
                 Tree data is a 2015–2016 snapshot from NYC Open Data, not a live feed — actual
                 tree cover today may differ slightly.
               </p>
+              {stopType !== "none" && !result.stop && (
+                <p className="text-xs text-amber-600">
+                  No {stopType} found within about 1.25mi of your starting point, so this route
+                  doesn't include a stop.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
