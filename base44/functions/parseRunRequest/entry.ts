@@ -46,7 +46,7 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({ error: "Missing 'text' parameter." }, { status: 400 });
     }
 
-    const parsed = await base44.integrations.Core.InvokeLLM({
+    const parsed = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: PROMPT_PREFIX + text + '"',
       response_json_schema: NL_PARSE_SCHEMA,
     });
