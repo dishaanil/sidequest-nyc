@@ -155,6 +155,13 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
   setStatus("generating");
   const { candidates, feasibility } = await generateCandidateRoutes(start, targetMeters, stop, end);
   if (candidates.length === 0) {
+    const targetMi = (targetMeters / METERS_PER_MILE).toFixed(2);
+    if (feasibility?.reason === "no_plausible_route") {
+      const prefPhrase = PREFERENCE_LABEL[preferenceEmphasis] || "a route matching your preference";
+      throw new Error(
+        `Couldn't find a good ${prefPhrase.replace(/^a /, "")} near ${startQuery} at ${targetMi}mi — every candidate was either far off that distance or required an implausible detour (like crossing water with no nearby bridge). Try a different distance or starting point.`
+      );
+    }
     throw new Error("Couldn't generate any walking routes from that starting point.");
   }
 
