@@ -41,18 +41,25 @@ const PREFERENCE_LABEL = {
   balanced: "a balanced route",
 };
 
-/** Describes the required waypoint (if any) for the winning route's explanation sentence. */
+/** Joins phrases as "A", "A and B", or "A, B, and C". */
+function joinParts(parts) {
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
+
 function describeStop(result) {
-  if (!result.waypoint) return null;
-  const name = result.waypoint.name || result.waypoint.placeName || "your requested stop";
-  if (result.waypointSource?.startsWith("stop_type:")) {
-    const kind = result.waypointSource.split(":")[1];
-    return `stops for ${kind} at ${name}`;
-  }
-  if (result.waypointSource?.startsWith("end:")) {
-    return `passes by ${name}`;
-  }
-  return `passes by ${name}`;
+  if (!result.stop) return null;
+  const name = result.stop.name || result.stop.placeName || "your requested stop";
+  const kind = result.stopSource?.startsWith("stop_type:") ? result.stopSource.split(":")[1] : "stop";
+  return `stops for ${kind} at ${name}`;
+}
+
+function describeEnd(result) {
+  if (!result.end) return null;
+  const name = result.end.name || result.end.placeName || "your requested end point";
+  return `ends near ${name}`;
 }
 
 /** One-sentence, data-grounded explanation for the composite-scored "Your Route" pick. */
@@ -71,11 +78,11 @@ function winnerExplanation(result) {
     metricPhrase = `passes within ${winner.treeScore.bufferMeters}m of ${winner.treeScore.treeCount} trees, ${winner.scenicScore.landmarkCount} landmarks, and ${winner.scenicScore.waterfrontCount} waterfront access points`;
   }
 
-  const stopPhrase = describeStop(result);
-  let sentence = stopPhrase ? `${metricPhrase} and ${stopPhrase}` : metricPhrase;
+  const parts = [metricPhrase, describeStop(result), describeEnd(result)].filter(Boolean);
+  let sentence = joinParts(parts);
 
   if (result.inputMode === "nl") {
-    const stopKind = result.waypointSource?.startsWith("stop_type:") ? result.waypointSource.split(":")[1] : null;
+    const stopKind = result.stopSource?.startsWith("stop_type:") ? result.stopSource.split(":")[1] : null;
     const reqPhrase = PREFERENCE_LABEL[pref] || "your requested route";
     sentence += `, per your request for ${reqPhrase}${stopKind ? ` with a ${stopKind} stop` : ""}`;
   }
@@ -94,60 +101,66 @@ const variantExplanation = (key, v, candidateCount) => {
 };
 
 /**
- * Shared pipeline: geocode start, resolve an optional required waypoint
- * (parsed `end` takes priority over `stopTypeRaw`), generate candidates,
- * score them, and compute both the existing Greenest/Scenic/Efficient
- * picks and the new composite-ranked winner. Used by both input modes so
- * neither duplicates this orchestration.
+ * Shared pipeline: geocode start, resolve an optional distinct `end` (which
+ * makes the route genuinely point-to-point instead of a loop) and an
+ * independent required `stop` (e.g. a coffee shop, "on the way" in either
+ * shape), generate candidates, score them, and compute both the existing
+ * Greenest/Scenic/Efficient picks and the composite-ranked winner. Used by
+ * both input modes so neither duplicates this orchestration.
  */
 async function runPipeline({ start: startQuery, end: endQuery, targetMeters, stopTypeRaw, preferenceEmphasis, setStatus }) {
   setStatus("geocoding");
   const start = await geocodeAddress(startQuery);
 
   const notes = [];
-  let waypoint = null;
-  let waypointSource = null;
 
+  let end = null;
   if (endQuery) {
     setStatus("resolvingWaypoint");
     try {
-      waypoint = await geocodeAddress(endQuery);
-      waypointSource = `end:${endQuery}`;
+      end = await geocodeAddress(endQuery);
     } catch (err) {
-      notes.push(`Couldn't geocode "${endQuery}" (${err.message}); continuing without it.`);
+      notes.push(`Couldn't geocode "${endQuery}" (${err.message}); looping back to start instead.`);
     }
   }
 
-  if (!waypoint && stopTypeRaw) {
+  let stop = null;
+  let stopSource = null;
+  if (stopTypeRaw) {
     const normalized = stopTypeRaw.toLowerCase().trim();
     if (NL_SUPPORTED_STOP_TYPES.includes(normalized)) {
       setStatus("resolvingWaypoint");
-      waypoint = await findNearestStop(start, normalized);
-      waypointSource = waypoint ? `stop_type:${normalized}` : null;
-      if (!waypoint) notes.push(`No ${normalized} found near the start point; continuing without a stop.`);
+      stop = await findNearestStop(start, normalized);
+      stopSource = stop ? `stop_type:${normalized}` : null;
+      if (!stop) notes.push(`No ${normalized} found near the start point; continuing without a stop.`);
     } else if (normalized !== "none") {
       notes.push(`Stop type "${stopTypeRaw}" isn't supported yet (only coffee/library); continuing without a stop.`);
     }
   }
 
   setStatus("generating");
-  const { candidates, feasibility } = await generateCandidateRoutes(start, targetMeters, CANDIDATE_COUNT, waypoint);
+  const { candidates, feasibility } = await generateCandidateRoutes(start, targetMeters, CANDIDATE_COUNT, stop, end);
   if (candidates.length === 0) {
     throw new Error("Couldn't generate any walking routes from that starting point.");
   }
 
-  if (feasibility && !feasibility.feasible) {
-    const stopLabel = waypoint?.name || waypoint?.placeName || "the required stop";
+  if (feasibility?.reason) {
+    const placeLabel = end ? end.name || end.placeName || endQuery : stop?.name || stop?.placeName || "the required stop";
     const directMi = (feasibility.directMeters / METERS_PER_MILE).toFixed(2);
-    const targetMi = (feasibility.targetDistanceMeters / METERS_PER_MILE).toFixed(2);
+    const targetMi = (targetMeters / METERS_PER_MILE).toFixed(2);
     if (feasibility.reason === "too_far") {
       notes.push(
-        `${startQuery} to ${stopLabel} is ${directMi}mi direct — I can't build a ${targetMi}mi loop through it, so here's the most direct route between them instead.`
+        `${startQuery} to ${placeLabel} is ${directMi}mi direct — longer than the ${targetMi}mi you asked for, so here's the most direct route between them instead.`
       );
-    } else {
+    } else if (feasibility.reason === "detour_added") {
       const bestMi = (feasibility.bestDistanceMeters / METERS_PER_MILE).toFixed(2);
       notes.push(
-        `${startQuery} to ${stopLabel} is ${directMi}mi direct — I couldn't hit ${targetMi}mi through it, so here's the closest reasonable route (${bestMi}mi) instead.`
+        `${startQuery} to ${placeLabel} is only ${directMi}mi direct, so I added a detour to bring this route to ${bestMi}mi, closer to your ${targetMi}mi target.`
+      );
+    } else if (feasibility.reason === "off_target") {
+      const bestMi = (feasibility.bestDistanceMeters / METERS_PER_MILE).toFixed(2);
+      notes.push(
+        `${startQuery} to ${placeLabel} is ${directMi}mi direct — I couldn't hit ${targetMi}mi through it, so here's the closest reasonable route (${bestMi}mi) instead.`
       );
     }
   }
@@ -168,8 +181,9 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
 
   return {
     start,
-    waypoint,
-    waypointSource,
+    end,
+    stop,
+    stopSource,
     notes,
     candidateCount: candidates.length,
     candidates: scored,
@@ -179,6 +193,39 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
     composite,
     preferenceEmphasis: composite.preferenceEmphasis,
   };
+}
+
+/** Start/stop/end markers shared by the hero card and each variant card. */
+function RouteMarkers({ result }) {
+  return (
+    <>
+      <CircleMarker
+        center={[result.start.lat, result.start.lng]}
+        radius={8}
+        pathOptions={{ color: "#1d4ed8", fillColor: "#1d4ed8", fillOpacity: 1 }}
+      >
+        <Popup>{result.end ? "Start" : "Start / End"}</Popup>
+      </CircleMarker>
+      {result.end && (
+        <CircleMarker
+          center={[result.end.lat, result.end.lng]}
+          radius={8}
+          pathOptions={{ color: "#dc2626", fillColor: "#dc2626", fillOpacity: 1 }}
+        >
+          <Popup>{result.end.name || result.end.placeName || "End"}</Popup>
+        </CircleMarker>
+      )}
+      {result.stop && (
+        <CircleMarker
+          center={[result.stop.lat, result.stop.lng]}
+          radius={8}
+          pathOptions={{ color: "#d97706", fillColor: "#d97706", fillOpacity: 1 }}
+        >
+          <Popup>{result.stop.name || result.stop.placeName}</Popup>
+        </CircleMarker>
+      )}
+    </>
+  );
 }
 
 export default function Home() {
@@ -392,22 +439,7 @@ export default function Home() {
                     positions={result.composite.winner.route.coords.map(([lng, lat]) => [lat, lng])}
                     pathOptions={{ color: "#0f172a", weight: 5 }}
                   />
-                  <CircleMarker
-                    center={[result.start.lat, result.start.lng]}
-                    radius={8}
-                    pathOptions={{ color: "#1d4ed8", fillColor: "#1d4ed8", fillOpacity: 1 }}
-                  >
-                    <Popup>Start / End</Popup>
-                  </CircleMarker>
-                  {result.waypoint && (
-                    <CircleMarker
-                      center={[result.waypoint.lat, result.waypoint.lng]}
-                      radius={8}
-                      pathOptions={{ color: "#d97706", fillColor: "#d97706", fillOpacity: 1 }}
-                    >
-                      <Popup>{result.waypoint.name || result.waypoint.placeName}</Popup>
-                    </CircleMarker>
-                  )}
+                  <RouteMarkers result={result} />
                 </MapContainer>
               </div>
               <p className="text-base text-slate-800">
@@ -444,22 +476,7 @@ export default function Home() {
                             positions={v.route.coords.map(([lng, lat]) => [lat, lng])}
                             pathOptions={{ color: meta.color, weight: 4 }}
                           />
-                          <CircleMarker
-                            center={[result.start.lat, result.start.lng]}
-                            radius={7}
-                            pathOptions={{ color: "#1d4ed8", fillColor: "#1d4ed8", fillOpacity: 1 }}
-                          >
-                            <Popup>Start / End</Popup>
-                          </CircleMarker>
-                          {result.waypoint && (
-                            <CircleMarker
-                              center={[result.waypoint.lat, result.waypoint.lng]}
-                              radius={7}
-                              pathOptions={{ color: "#d97706", fillColor: "#d97706", fillOpacity: 1 }}
-                            >
-                              <Popup>{result.waypoint.name || result.waypoint.placeName}</Popup>
-                            </CircleMarker>
-                          )}
+                          <RouteMarkers result={result} />
                         </MapContainer>
                       </div>
                       <p className="text-sm text-slate-700">
