@@ -1,9 +1,11 @@
 import { destinationPoint, haversineDistance, pointToRouteDistanceMeters, routeLengthMeters } from "./geo";
 import { getWalkingRoute } from "./mapboxApi";
 import { getDirectionalBias } from "./directionalBias";
+import { mapWithConcurrency } from "./concurrency";
 
 const EVEN_BEARINGS = [20, 65, 110, 155, 200, 245, 290, 335]; // 8-way compass spread, "balanced" coverage
 const MAX_CANDIDATES = 12;
+const ROUTE_FETCH_CONCURRENCY = 4; // cap parallel Mapbox Directions calls
 const BEARING_MERGE_DEGREES = 10; // treat bearings this close together as redundant
 
 const TOLERANCE_PREFERRED = 0.05;
@@ -106,7 +108,7 @@ async function generateLoopCandidates(start, targetDistanceMeters, stop) {
   const biased = await biasedBearingsAround(start, legRadius);
   const bearings = buildBearingList(biased);
 
-  const attempts = bearings.map(async (bearing) => {
+  const attempts = await mapWithConcurrency(bearings, ROUTE_FETCH_CONCURRENCY, async (bearing) => {
     const a = stop ? { lat: stop.lat, lng: stop.lng } : destinationPoint(start.lat, start.lng, bearing, legRadius);
     const b = destinationPoint(start.lat, start.lng, bearing + 130, legRadius);
     try {
@@ -118,7 +120,7 @@ async function generateLoopCandidates(start, targetDistanceMeters, stop) {
     }
   });
 
-  const results = (await Promise.all(attempts)).filter(Boolean);
+  const results = attempts.filter(Boolean);
   const { candidates: toleranceFiltered, tolerance } = filterByTolerance(results, targetDistanceMeters);
   return { candidates: dedupeCandidates(toleranceFiltered), tolerance };
 }
@@ -163,7 +165,7 @@ async function generatePointToPointCandidates(start, end, targetDistanceMeters, 
   const biased = await biasedBearingsAround({ lat: midLat, lng: midLng }, detourRadius);
   const bearings = buildBearingList(biased);
 
-  const attempts = bearings.map(async (bearing) => {
+  const attempts = await mapWithConcurrency(bearings, ROUTE_FETCH_CONCURRENCY, async (bearing) => {
     const detour = destinationPoint(midLat, midLng, bearing, detourRadius);
     const points = stop ? [start, stop, detour, end] : [start, detour, end];
     try {
@@ -175,7 +177,7 @@ async function generatePointToPointCandidates(start, end, targetDistanceMeters, 
     }
   });
 
-  const results = (await Promise.all(attempts)).filter(Boolean);
+  const results = attempts.filter(Boolean);
   const { candidates: toleranceFiltered, tolerance } = filterByTolerance(results, targetDistanceMeters);
   const deduped = dedupeCandidates(toleranceFiltered);
   const pool = deduped.length > 0 ? deduped : [{ bearing: null, route: directRoute }];
