@@ -548,40 +548,31 @@ export default function Home() {
           </p>
         </div>
 
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={inputMode === "nl" ? "default" : "outline"}
-                onClick={() => setInputMode("nl")}
-              >
-                Describe your run
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={inputMode === "form" ? "default" : "outline"}
-                onClick={() => setInputMode("form")}
-              >
-                Use the form
-              </Button>
-            </div>
-
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="pt-8 pb-6 space-y-4">
             {inputMode === "nl" ? (
-              <form onSubmit={handleGenerateNL} className="space-y-3">
+              <form onSubmit={handleGenerateNL} className="space-y-4">
                 <Textarea
-                  placeholder={
-                    'e.g. "I’m starting at Union Square, ending at Washington Square, run 2 miles, stop at a coffee shop on the way, and I want my route to be as green as possible."'
-                  }
+                  className="text-lg md:text-lg leading-relaxed min-h-[130px] px-4 py-4 rounded-xl border-slate-300 shadow-sm focus-visible:ring-2 focus-visible:ring-slate-900 disabled:opacity-60"
+                  placeholder={`Try: "${EXAMPLE_PROMPTS[exampleIndex]}"`}
                   value={nlText}
                   onChange={(e) => setNlText(e.target.value)}
                   rows={3}
+                  disabled={isLoading}
                 />
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? STATUS_LABEL[genStatus] : "Generate route"}
-                </Button>
+                <div className="flex items-center justify-between gap-4">
+                  <Button type="submit" size="lg" disabled={isLoading} className="min-w-[180px]">
+                    {isLoading && <Spinner />}
+                    {isLoading ? STATUS_LABEL[genStatus] : "Generate route"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setInputMode("form")}
+                    className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 whitespace-nowrap"
+                  >
+                    Use the form instead
+                  </button>
+                </div>
                 {nlParsed && (
                   <p className="text-xs text-slate-500">
                     Understood: start "{nlParsed.start}"
@@ -595,44 +586,56 @@ export default function Home() {
                 )}
               </form>
             ) : (
-              <form onSubmit={handleGenerateForm} className="flex flex-wrap items-end gap-4">
-                <div className="flex-1 min-w-[220px] space-y-1.5">
-                  <Label htmlFor="address">Starting point</Label>
-                  <Input
-                    id="address"
-                    placeholder="e.g. Union Square, NYC"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </div>
-                <div className="w-32 space-y-1.5">
-                  <Label htmlFor="distance">Distance (mi)</Label>
-                  <Input
-                    id="distance"
-                    type="number"
-                    min="0.5"
-                    step="0.5"
-                    value={distanceMiles}
-                    onChange={(e) => setDistanceMiles(e.target.value)}
-                  />
-                </div>
-                <div className="w-44 space-y-1.5">
-                  <Label htmlFor="stop">Sidequest stop</Label>
-                  <Select value={stopType} onValueChange={setStopType}>
-                    <SelectTrigger id="stop">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="coffee">Coffee ☕</SelectItem>
-                      <SelectItem value="library">Library 📚</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? STATUS_LABEL[genStatus] : "Generate routes"}
-                </Button>
-              </form>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setInputMode("nl")}
+                  className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2"
+                >
+                  ← Back to describing your run
+                </button>
+                <form onSubmit={handleGenerateForm} className="flex flex-wrap items-end gap-4">
+                  <div className="flex-1 min-w-[220px] space-y-1.5">
+                    <Label htmlFor="address">Starting point</Label>
+                    <Input
+                      id="address"
+                      placeholder="e.g. Union Square, NYC"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="w-32 space-y-1.5">
+                    <Label htmlFor="distance">Distance (mi)</Label>
+                    <Input
+                      id="distance"
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                      value={distanceMiles}
+                      onChange={(e) => setDistanceMiles(e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="w-44 space-y-1.5">
+                    <Label htmlFor="stop">Sidequest stop</Label>
+                    <Select value={stopType} onValueChange={setStopType} disabled={isLoading}>
+                      <SelectTrigger id="stop">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="coffee">Coffee ☕</SelectItem>
+                        <SelectItem value="library">Library 📚</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading && <Spinner />}
+                    {isLoading ? STATUS_LABEL[genStatus] : "Generate routes"}
+                  </Button>
+                </form>
+              </div>
             )}
 
             {genError && <p className="text-sm text-red-600">{genError}</p>}
