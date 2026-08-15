@@ -561,7 +561,7 @@ export default function Home() {
             {inputMode === "nl" ? (
               <form onSubmit={handleGenerateNL} className="space-y-4">
                 <Textarea
-                  className="text-lg md:text-lg leading-relaxed min-h-[130px] px-4 py-4 rounded-xl border-slate-300 shadow-sm focus-visible:ring-2 focus-visible:ring-slate-900 disabled:opacity-60"
+                  className="text-lg md:text-lg leading-relaxed min-h-[130px] px-4 py-4 rounded-xl border-stone-300 shadow-sm focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                   placeholder={`Try: "${EXAMPLE_PROMPTS[exampleIndex]}"`}
                   value={nlText}
                   onChange={(e) => setNlText(e.target.value)}
@@ -576,7 +576,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setInputMode("form")}
-                    className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 whitespace-nowrap"
+                    className="text-xs text-stone-400 hover:text-primary underline underline-offset-2 whitespace-nowrap"
                   >
                     Use the form instead
                   </button>
@@ -598,7 +598,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setInputMode("nl")}
-                  className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2"
+                  className="text-xs text-stone-400 hover:text-primary underline underline-offset-2"
                 >
                   ← Back to describing your run
                 </button>
