@@ -5,7 +5,7 @@
  * rate limits or overwhelm the browser's connection pool, so this caps
  * concurrency instead of removing parallelism entirely.
  */
-export async function mapWithConcurrency(items, limit, fn) {
+export async function mapWithConcurrency(items, limit, fn, delayMs = 0) {
   const results = new Array(items.length);
   let index = 0;
 
@@ -13,6 +13,9 @@ export async function mapWithConcurrency(items, limit, fn) {
     while (index < items.length) {
       const i = index++;
       results[i] = await fn(items[i], i);
+      if (delayMs > 0 && index < items.length) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
 
