@@ -248,9 +248,9 @@ async function generatePointToPointCandidates(start, end, targetDistanceMeters, 
  * that fails, `feasibility.feasible` is false and the caller should tell the
  * user honestly rather than presenting the result as if it matched.
  */
-export async function generateCandidateRoutes(start, targetDistanceMeters, stop = null, end = null) {
+export async function generateCandidateRoutes(start, targetDistanceMeters, stop = null, end = null, stopPositionFraction = 0.5) {
   if (end) {
-    return generatePointToPointCandidates(start, end, targetDistanceMeters, stop);
+    return generatePointToPointCandidates(start, end, targetDistanceMeters, stop, stopPositionFraction);
   }
 
   if (stop) {
@@ -265,7 +265,7 @@ export async function generateCandidateRoutes(start, targetDistanceMeters, stop 
     }
   }
 
-  const { candidates, tolerance } = await generateLoopCandidates(start, targetDistanceMeters, stop);
+  const { candidates, tolerance } = await generateLoopCandidates(start, targetDistanceMeters, stop, stopPositionFraction);
 
   if (candidates.length === 0) {
     return { candidates: [], feasibility: { feasible: false, reason: "no_plausible_route" } };
