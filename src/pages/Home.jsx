@@ -159,6 +159,40 @@ function StatTile({ label, value, suffix, evidence, color }) {
   );
 }
 
+const MINI_SCORE_ITEMS = [
+  { key: "greeneryScore", label: "Green", color: "#16a34a" },
+  { key: "scenicScore", label: "Scenic", color: "#a855f7" },
+  { key: "runningQualityScore", label: "RunQ", color: "#2563eb" },
+];
+
+/**
+ * Compact all-three-scores row for the secondary variant cards, so a user
+ * can compare Greenery/Scenic/Running Quality across options at a glance
+ * without opening each one. The score that actually drove this variant's
+ * selection (`primaryKey`) is shown bold and colored; the other two are
+ * muted but still present for comparison.
+ */
+function MiniScoreRow({ breakdown, primaryKey }) {
+  return (
+    <div className="flex items-center gap-3">
+      {MINI_SCORE_ITEMS.map((item) => {
+        const isPrimary = item.key === primaryKey;
+        return (
+          <div key={item.key} className="flex items-baseline gap-1">
+            <span
+              className={isPrimary ? "text-sm font-bold tabular-nums" : "text-sm font-semibold tabular-nums text-slate-400"}
+              style={isPrimary ? { color: item.color } : undefined}
+            >
+              {breakdown[item.key]}
+            </span>
+            <span className="text-[10px] uppercase tracking-wide text-slate-400">{item.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const variantExplanation = (key, v) => {
   if (key === "greenest") return greeneryEvidence(v.breakdown);
   if (key === "scenic") return scenicEvidence(v.breakdown);
