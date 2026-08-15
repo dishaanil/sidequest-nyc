@@ -58,22 +58,26 @@ const FINDERS = {
 export const STOP_TYPES = Object.keys(FINDERS);
 
 /**
- * Finds the nearest real stop of the given type to `start` (within a fixed
- * search radius), to be inserted as a required waypoint. Returns null if
- * none exists nearby — the caller falls back to no stop.
+ * Finds the real stop of the given type nearest to `searchCenter` (within a
+ * fixed search radius), to be inserted as a required waypoint. `searchCenter`
+ * is not necessarily the trip's start point -- callers pass an "ideal
+ * position along the route" point (see stopPosition.js) so a stop type that
+ * defaults to the middle or end of the run doesn't just get the POI nearest
+ * to where the runner laces up. Returns null if none exists nearby — the
+ * caller falls back to no stop.
  */
-export async function findNearestStop(start, stopType) {
+export async function findNearestStop(searchCenter, stopType) {
   const finder = FINDERS[stopType];
   if (!finder) return null;
 
-  const bbox = routeBoundingBox([[start.lng, start.lat]], SEARCH_RADIUS_METERS);
+  const bbox = routeBoundingBox([[searchCenter.lng, searchCenter.lat]], SEARCH_RADIUS_METERS);
   const candidates = await finder.query(bbox);
   if (candidates.length === 0) return null;
 
   let nearest = null;
   let nearestDist = Infinity;
   for (const c of candidates) {
-    const d = haversineDistance(start.lat, start.lng, c.lat, c.lng);
+    const d = haversineDistance(searchCenter.lat, searchCenter.lng, c.lat, c.lng);
     if (d < nearestDist) {
       nearestDist = d;
       nearest = c;
