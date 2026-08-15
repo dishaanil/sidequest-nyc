@@ -220,6 +220,39 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
   };
 }
 
+/**
+ * Pure, deterministic comparison numbers — no LLM involved here. This is the
+ * "data first" half of the explanation: everything the LLM is later allowed
+ * to talk about, and nothing it isn't.
+ */
+function buildComparisonStats(result) {
+  const winner = result.composite.winner;
+  const stats = {
+    preference_emphasis: result.preferenceEmphasis,
+    target_distance_mi: Number((result.targetMeters / METERS_PER_MILE).toFixed(2)),
+    winner_distance_mi: Number((winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)),
+    winner_distance_deviation_pct: winner.breakdown.evidence.distanceDeviationPct,
+    winner_greenery_score: winner.breakdown.greeneryScore,
+    winner_scenic_score: winner.breakdown.scenicScore,
+    winner_running_quality_score: winner.breakdown.runningQualityScore,
+    shortest_option_distance_mi: Number((result.efficient.route.distanceMeters / METERS_PER_MILE).toFixed(2)),
+    shortest_option_greenery_score: result.efficient.breakdown.greeneryScore,
+    greenery_score_improvement_vs_shortest_option: winner.breakdown.greeneryScore - result.efficient.breakdown.greeneryScore,
+    greenest_alternative_greenery_score: result.greenest.breakdown.greeneryScore,
+    scenic_alternative_scenic_score: result.scenic.breakdown.scenicScore,
+  };
+
+  if (result.stop) {
+    stats.stop_type = result.stopSource?.startsWith("stop_type:") ? result.stopSource.split(":")[1] : "stop";
+    stats.stop_name = result.stop.name || result.stop.placeName || null;
+    stats.stop_position_pct_along_route = Math.round(
+      positionAlongRouteFraction(result.stop.lat, result.stop.lng, winner.route.coords) * 100
+    );
+  }
+
+  return stats;
+}
+
 /** Start/stop/end markers shared by the hero card and each variant card. */
 function RouteMarkers({ result }) {
   return (
