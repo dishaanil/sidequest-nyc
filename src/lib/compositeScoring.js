@@ -1,10 +1,14 @@
-// Fixed share of the composite score reserved for hitting the requested
-// distance, regardless of preference — a beautiful route that's way off
-// target shouldn't be able to outscore an accurate one.
-const DISTANCE_WEIGHT = 0.3;
-// Deviation fraction (|actual-target|/target) at which distance-accuracy
-// bottoms out at 0. 10% deviation (the max tolerance) still scores 0.75.
+// Deviation fraction (|actual-target|/target) at which raw distance
+// accuracy bottoms out at 0. 10% deviation (the max tolerance) still scores
+// 0.75 before flooring.
 const DISTANCE_SATURATION = 0.4;
+// Minimum distance multiplier even at total distance mismatch. Not a literal
+// 0: if every candidate in a batch is equally off-target (the tolerance
+// widened to "none" fallback), a hard floor of 0 would tie every composite
+// score at exactly 0 and make the "winner" an arbitrary sort artifact.
+// 0.1 keeps scenery meaningful as a tiebreaker in that degenerate case while
+// still making distance the dominant factor everywhere else.
+const DISTANCE_FLOOR = 0.1;
 
 const SCENERY_WEIGHTS_BY_PREFERENCE = {
   greenery: { trees: 0.7, landmarks: 0.15, waterfront: 0.15 },
@@ -32,24 +36,24 @@ function distanceAccuracy(distanceMeters, targetDistanceMeters) {
   return Math.max(0, 1 - deviation / DISTANCE_SATURATION);
 }
 
+/** Maps 0-1 distance accuracy to a DISTANCE_FLOOR..1.0 multiplier. */
+function distanceFactor(accuracy) {
+  return DISTANCE_FLOOR + (1 - DISTANCE_FLOOR) * accuracy;
+}
+
 /**
  * Ranks already-scored candidates (each with treeScore.treeCount,
- * scenicScore.{landmarkCount,waterfrontCount}, and route.distanceMeters)
- * by a single composite score: normalize each scenery metric 0-1 across
- * this batch, weight by preference_emphasis, and add an absolute
- * distance-accuracy term (fixed weight, not batch-relative) so distance
- * deviation is a real penalty. Falls back to "balanced" weights for an
+ * scenicScore.{landmarkCount,waterfrontCount}, and route.distanceMeters) by
+ * a single composite score: normalize each scenery metric 0-1 across this
+ * batch, weight by preference_emphasis into one 0-1 scenery score, then
+ * MULTIPLY by a distance-accuracy factor (not add) — so a candidate whose
+ * distance is way off the target has its whole score dragged down
+ * regardless of how good its scenery is, instead of just losing a fixed
+ * slice of an additive budget. Falls back to "balanced" weights for an
  * unrecognized preference.
  */
 export function rankByComposite(scoredCandidates, preferenceEmphasis, targetDistanceMeters) {
-  const sceneryWeights = SCENERY_WEIGHTS_BY_PREFERENCE[preferenceEmphasis] || SCENERY_WEIGHTS_BY_PREFERENCE.balanced;
-  const sceneryBudget = 1 - DISTANCE_WEIGHT;
-  const weights = {
-    trees: sceneryWeights.trees * sceneryBudget,
-    landmarks: sceneryWeights.landmarks * sceneryBudget,
-    waterfront: sceneryWeights.waterfront * sceneryBudget,
-    distance: DISTANCE_WEIGHT,
-  };
+  const weights = SCENERY_WEIGHTS_BY_PREFERENCE[preferenceEmphasis] || SCENERY_WEIGHTS_BY_PREFERENCE.balanced;
 
   const treesNorm = normalize(scoredCandidates.map((c) => c.treeScore.treeCount));
   const landmarksNorm = normalize(scoredCandidates.map((c) => c.scenicScore.landmarkCount));
@@ -63,14 +67,17 @@ export function rankByComposite(scoredCandidates, preferenceEmphasis, targetDist
         waterfront: waterfrontNorm[i],
         distance: distanceAccuracy(c.route.distanceMeters, targetDistanceMeters),
       };
-      const compositeScore =
-        normalized.trees * weights.trees +
-        normalized.landmarks * weights.landmarks +
-        normalized.waterfront * weights.waterfront +
-        normalized.distance * weights.distance;
-      return { ...c, normalized, compositeScore };
+      const sceneryScore =
+        normalized.trees * weights.trees + normalized.landmarks * weights.landmarks + normalized.waterfront * weights.waterfront;
+      const compositeScore = sceneryScore * distanceFactor(normalized.distance);
+      return { ...c, normalized, sceneryScore, compositeScore };
     })
     .sort((a, b) => b.compositeScore - a.compositeScore);
 
-  return { ranked, winner: ranked[0], weights, preferenceEmphasis: preferenceEmphasis || "balanced" };
+  return {
+    ranked,
+    winner: ranked[0],
+    weights: { ...weights, distanceFloor: DISTANCE_FLOOR },
+    preferenceEmphasis: preferenceEmphasis || "balanced",
+  };
 }
