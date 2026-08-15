@@ -36,6 +36,7 @@ const VARIANT_META = {
   efficient: { color: "#2563eb", scoreKey: "runningQualityScore" },
 };
 const VARIANT_ORDER = ["greenest", "scenic", "efficient"];
+const LOW_RUNNING_QUALITY_THRESHOLD = 40;
 
 const PREFERENCE_LABEL = {
   greenery: "a green route",
@@ -516,6 +517,14 @@ export default function Home() {
                 <strong>{(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi</strong>
                 {introSentence(result) ? ` — ${introSentence(result)}` : "."}
               </p>
+              {winner.breakdown.runningQualityScore < LOW_RUNNING_QUALITY_THRESHOLD && (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+                  <strong>Heads up: </strong>
+                  This route's distance is well off your target ({(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi vs{" "}
+                  {(result.targetMeters / METERS_PER_MILE).toFixed(2)} mi requested, {winner.breakdown.evidence.distanceDeviationPct}% off) — running quality is only{" "}
+                  {winner.breakdown.runningQualityScore}/100. Scenery scores below reflect this route, not a good distance match.
+                </p>
+              )}
               {result.whyExplanation && (
                 <p className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 mt-2">
                   <strong>Why Sidequest chose this: </strong>
