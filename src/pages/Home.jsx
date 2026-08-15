@@ -584,68 +584,89 @@ export default function Home() {
         </Card>
 
         {result && winner && (
-          <Card className="border-2 border-slate-900">
-            <CardHeader>
-              <CardTitle className="text-xl">Best Match</CardTitle>
-              <p className="text-sm text-slate-600">
-                <strong>{(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi</strong>
-                {introSentence(result) ? ` — ${introSentence(result)}` : "."}
-              </p>
+          <Card className="border-2 border-slate-900 overflow-hidden py-0 gap-0">
+            <div className="h-[460px] sm:h-[540px] w-full">
+              <MapContainer center={[result.start.lat, result.start.lng]} zoom={14} className="h-full w-full">
+                <TileLayer
+                  attribution='&copy; OpenStreetMap contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Polyline
+                  positions={winner.route.coords.map(([lng, lat]) => [lat, lng])}
+                  pathOptions={{ color: "#0f172a", weight: 5 }}
+                />
+                <RouteMarkers result={result} />
+              </MapContainer>
+            </div>
+
+            <CardContent className="space-y-5 pt-6 pb-6">
+              <div>
+                <CardTitle className="text-2xl">Best Match</CardTitle>
+                <p className="text-sm text-slate-600 mt-1">{introSentence(result) || "Here's your generated route."}</p>
+              </div>
+
               {winner.breakdown.runningQualityScore < LOW_RUNNING_QUALITY_THRESHOLD && (
-                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
                   <strong>Heads up: </strong>
                   This route's distance is well off your target ({(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi vs{" "}
                   {(result.targetMeters / METERS_PER_MILE).toFixed(2)} mi requested, {winner.breakdown.evidence.distanceDeviationPct}% off) — running quality is only{" "}
                   {winner.breakdown.runningQualityScore}/100. Scenery scores below reflect this route, not a good distance match.
                 </p>
               )}
-              {describeStopPlacement(result, winner.route) && (
-                <p className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 mt-2">
-                  <strong>Stop placement: </strong>
-                  {describeStopPlacement(result, winner.route)}
-                </p>
-              )}
-              {result.whyExplanation && (
-                <p className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 mt-2">
-                  <strong>Why Sidequest chose this: </strong>
-                  {result.whyExplanation}
-                </p>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg overflow-hidden border border-slate-200 h-[400px]">
-                <MapContainer center={[result.start.lat, result.start.lng]} zoom={14} className="h-full w-full">
-                  <TileLayer
-                    attribution='&copy; OpenStreetMap contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  <Polyline
-                    positions={winner.route.coords.map(([lng, lat]) => [lat, lng])}
-                    pathOptions={{ color: "#0f172a", weight: 5 }}
-                  />
-                  <RouteMarkers result={result} />
-                </MapContainer>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-                <ScoreTile
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-5 py-4 border-y border-slate-100">
+                <StatTile label="Distance" value={(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} suffix="mi" />
+                <StatTile label="Est. Time" value={estimateDuration(winner.route.distanceMeters)} />
+                <StatTile
                   label="Greenery"
-                  score={winner.breakdown.greeneryScore}
-                  evidence={greeneryEvidence(winner.breakdown)}
+                  value={winner.breakdown.greeneryScore}
+                  suffix="/100"
                   color="#16a34a"
+                  evidence={greeneryEvidence(winner.breakdown)}
                 />
-                <ScoreTile
+                <StatTile
                   label="Scenic"
-                  score={winner.breakdown.scenicScore}
-                  evidence={scenicEvidence(winner.breakdown)}
+                  value={winner.breakdown.scenicScore}
+                  suffix="/100"
                   color="#a855f7"
+                  evidence={scenicEvidence(winner.breakdown)}
                 />
-                <ScoreTile
+                <StatTile
                   label="Running Quality"
-                  score={winner.breakdown.runningQualityScore}
-                  evidence={runningQualityEvidence(winner.breakdown, winner.route.distanceMeters, result.targetMeters)}
+                  value={winner.breakdown.runningQualityScore}
+                  suffix="/100"
                   color="#2563eb"
+                  evidence={runningQualityEvidence(winner.breakdown, winner.route.distanceMeters, result.targetMeters)}
                 />
               </div>
+
+              {result.stop && (
+                <div
+                  className="inline-flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-full pl-2 pr-4 py-1.5"
+                  title={describeStopPlacement(result, winner.route) || undefined}
+                >
+                  <span className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-sm shrink-0">
+                    {getStopEmoji(result.stop.type)}
+                  </span>
+                  <span className="text-sm text-amber-900">
+                    <strong>{result.stop.name}</strong>
+                    {result.stopPlacement &&
+                      ` — ${POSITION_CATEGORY_SHORT_PHRASE[result.stopPlacement.category] || "along your run"}`}
+                  </span>
+                </div>
+              )}
+
+              {result.whyExplanation && (
+                <div className="flex gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
+                  <span className="text-lg leading-none mt-0.5">💡</span>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700 mb-1">
+                      Why Sidequest chose this
+                    </div>
+                    <p className="text-sm text-indigo-900">{result.whyExplanation}</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
