@@ -64,6 +64,94 @@ export default function Home() {
     }
   };
 
+  // --- Wire parsed NL output into the existing candidate generation/scoring
+  // pipeline, unmodified, and show raw per-candidate scores (no composite
+  // ranking yet — that's the next step). ---
+  const NL_SUPPORTED_STOP_TYPES = ["coffee", "library"]; // matches stopFinder.js's FINDERS keys
+  const [nlWireStatus, setNlWireStatus] = useState("idle"); // idle | geocoding | resolvingWaypoint | generating | scoring | done | error
+  const [nlWireError, setNlWireError] = useState(null);
+  const [nlScored, setNlScored] = useState(null); // { start, waypoint, waypointSource, notes, candidates }
+
+  const nlWireBusy = ["geocoding", "resolvingWaypoint", "generating", "scoring"].includes(nlWireStatus);
+
+  const handleGenerateFromParsed = async () => {
+    setNlWireError(null);
+    setNlScored(null);
+
+    if (!nlParsed) {
+      setNlWireError("Parse a description first.");
+      return;
+    }
+    const targetMeters = (nlParsed.distance_miles || 0) * METERS_PER_MILE;
+    if (!nlParsed.start || !targetMeters || targetMeters <= 0) {
+      setNlWireError("Parsed result is missing a start location or a usable distance.");
+      return;
+    }
+
+    const notes = [];
+    try {
+      setNlWireStatus("geocoding");
+      const start = await geocodeAddress(nlParsed.start);
+
+      // Reuses the exact same "required waypoint" mechanism generateCandidateRoutes
+      // already supports for Tier 1 stops — a parsed `end` just takes priority
+      // over a parsed `stop_type` as the thing fed into that same slot. The
+      // route still loops back to start (unchanged from the existing
+      // generator); it doesn't literally terminate at `end`.
+      let waypoint = null;
+      let waypointSource = null;
+
+      if (nlParsed.end) {
+        setNlWireStatus("resolvingWaypoint");
+        try {
+          waypoint = await geocodeAddress(nlParsed.end);
+          waypointSource = `end: "${nlParsed.end}"`;
+        } catch (err) {
+          notes.push(`Couldn't geocode parsed end "${nlParsed.end}" (${err.message}); continuing without it.`);
+        }
+      }
+
+      if (!waypoint && nlParsed.stop_type) {
+        const normalized = nlParsed.stop_type.toLowerCase().trim();
+        if (NL_SUPPORTED_STOP_TYPES.includes(normalized)) {
+          setNlWireStatus("resolvingWaypoint");
+          waypoint = await findNearestStop(start, normalized);
+          if (waypoint) {
+            waypointSource = `stop_type: "${normalized}"`;
+          } else {
+            notes.push(`No ${normalized} found near the start point; continuing without a stop.`);
+          }
+        } else {
+          notes.push(
+            `stop_type "${nlParsed.stop_type}" isn't a supported stop type yet (only coffee/library); continuing without a stop.`
+          );
+        }
+      }
+
+      setNlWireStatus("generating");
+      const candidates = await generateCandidateRoutes(start, targetMeters, CANDIDATE_COUNT, waypoint);
+      if (candidates.length === 0) {
+        throw new Error("Couldn't generate any walking routes from the parsed starting point.");
+      }
+
+      setNlWireStatus("scoring");
+      const scored = await Promise.all(
+        candidates.map(async (c) => ({
+          ...c,
+          treeScore: await scoreRouteForTrees(c.route.coords),
+          scenicScore: await scoreRouteForScenic(c.route.coords),
+        }))
+      );
+
+      setNlScored({ start, waypoint, waypointSource, notes, candidates: scored });
+      setNlWireStatus("done");
+    } catch (err) {
+      console.error(err);
+      setNlWireError(err.message || "Something went wrong generating candidates from the parsed request.");
+      setNlWireStatus("error");
+    }
+  };
+
   const isLoading =
     status === "geocoding" ||
     status === "findingStop" ||
