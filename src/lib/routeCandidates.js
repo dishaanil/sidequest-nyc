@@ -4,7 +4,7 @@ import { getDirectionalBias } from "./directionalBias";
 import { mapWithConcurrency } from "./concurrency";
 
 const EVEN_BEARINGS = [20, 65, 110, 155, 200, 245, 290, 335]; // 8-way compass spread, "balanced" coverage
-const MAX_CANDIDATES = 12;
+const MAX_CANDIDATES = 8; // NYC Open Data's public endpoint throttles hard under bursty load; 8 keeps scoring volume sane
 const ROUTE_FETCH_CONCURRENCY = 4; // cap parallel Mapbox Directions calls
 const BEARING_MERGE_DEGREES = 10; // treat bearings this close together as redundant
 
