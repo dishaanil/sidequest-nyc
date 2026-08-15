@@ -203,12 +203,12 @@ function MiniScoreRow({ breakdown, primaryKey }) {
         return (
           <div key={item.key} className="flex items-baseline gap-1">
             <span
-              className={isPrimary ? "text-sm font-bold tabular-nums" : "text-sm font-semibold tabular-nums text-slate-400"}
+              className={isPrimary ? "text-sm font-bold tabular-nums" : "text-sm font-semibold tabular-nums text-stone-400"}
               style={isPrimary ? { color: item.color } : undefined}
             >
               {breakdown[item.key]}
             </span>
-            <span className="text-[10px] uppercase tracking-wide text-slate-400">{item.label}</span>
+            <span className="text-[10px] uppercase tracking-wide text-stone-400">{item.label}</span>
           </div>
         );
       })}
@@ -769,7 +769,7 @@ export default function Home() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="flex-1 flex flex-col gap-2.5 px-3.5 pb-3.5 pt-0">
-                        <div className="rounded-md overflow-hidden border border-slate-200 h-[260px]">
+                        <div className="rounded-md overflow-hidden border border-stone-200 h-[260px]">
                           <MapContainer center={[result.start.lat, result.start.lng]} zoom={14} className="h-full w-full">
                             <TileLayer
                               attribution='&copy; OpenStreetMap contributors'
