@@ -449,6 +449,56 @@ function RouteMarkers({ result }) {
   );
 }
 
+// Deterministic pseudo-random in [0,1) from a numeric seed (classic
+// sine-hash trick) -- NOT Math.random, so these decorative paths render
+// identically on every mount instead of reshuffling on each re-render.
+function seededRandom(seed) {
+  const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/**
+ * Turns a small set of "shape" control points (the rough footprint of a
+ * loop or line) into a longer, irregular street-grid-following path, so it
+ * reads as "a real generated route" rather than a drawn polygon -- each
+ * edge between control points becomes 3-5 short legs of varying length,
+ * alternating which axis leads (with a little of the other axis creeping
+ * in too, to avoid a literal staircase), instead of one clean straight
+ * line. The original control points are still hit exactly, so the overall
+ * footprint/location and closing-the-loop behavior are preserved.
+ */
+function streetify(controlPoints, seed) {
+  const path = [controlPoints[0]];
+  for (let i = 1; i < controlPoints.length; i++) {
+    const [lat1, lng1] = path[path.length - 1];
+    const [lat2, lng2] = controlPoints[i];
+    const legCount = 3 + Math.floor(seededRandom(seed + i) * 3); // 3-5 legs
+    let curLat = lat1;
+    let curLng = lng1;
+    for (let j = 0; j < legCount; j++) {
+      const isLast = j === legCount - 1;
+      const remainingLat = lat2 - curLat;
+      const remainingLng = lng2 - curLng;
+      if (isLast) {
+        curLat = lat2;
+        curLng = lng2;
+      } else {
+        const frac = 0.25 + seededRandom(seed + i * 10 + j) * 0.35;
+        const axisLead = (i + j) % 2 === 0 ? "lat" : "lng";
+        if (axisLead === "lat") {
+          curLat += remainingLat * frac;
+          curLng += remainingLng * frac * 0.15; // slight creep on the cross axis
+        } else {
+          curLng += remainingLng * frac;
+          curLat += remainingLat * frac * 0.15;
+        }
+      }
+      path.push([curLat, curLng]);
+    }
+  }
+  return path;
+}
+
 /** [[minLat,minLng],[maxLat,maxLng]] bounding box of a path, for fitBounds framing. */
 function boundsFromPath(path) {
   const lats = path.map((p) => p[0]);
