@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { TreePine } from "lucide-react";
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -49,6 +48,35 @@ function Spinner({ className = "" }) {
     <svg className={`animate-spin h-4 w-4 ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
+
+/**
+ * Brand mark: a simple flat stick-figure runner mid-stride, carrying a small
+ * pack on their back -- the "running + carrying something" idea behind
+ * "Sidequest", in the same thin-stroke line style as the rest of the icon
+ * usage in the app (not a detailed/filled illustration).
+ */
+function RunnerIcon({ className = "" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="14.5" cy="4.5" r="1.6" />
+      <path d="M13.8 6 10.5 13" />
+      <path d="M12.5 8 9 7.5" />
+      <path d="M12.5 8 14.5 11.5" />
+      <path d="M10.5 13 7 15.5 5 20.5" />
+      <path d="M10.5 13 13.5 15.5 12.5 20.5" />
+      <rect x="10.3" y="7.3" width="2.6" height="4" rx="0.8" transform="rotate(24 11.6 9.3)" />
     </svg>
   );
 }
@@ -677,11 +705,11 @@ export default function Home() {
 
         <div className="flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <TreePine className="h-6 w-6" strokeWidth={2.25} />
+            <RunnerIcon className="h-6 w-6" />
           </div>
           <div>
             <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-              Sidequest
+              Sidequest — NYC
             </h1>
             <p className="text-stone-500 text-sm">
               Generate a running route scored against real NYC open data.
