@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -32,6 +32,25 @@ const STATUS_LABEL = {
   scoring: "Scoring routes against NYC open data…",
   explaining: "Explaining the choice…",
 };
+
+// Rotates through the textarea's placeholder so an empty input still shows a
+// concrete, copy-able example of what to type instead of sitting blank.
+const EXAMPLE_PROMPTS = [
+  "Union Square to Bobst Library, 2 miles, coffee, lots of greenery",
+  "5 mile easy sunset run by the water, starting at Battery Park",
+  "3 mile loop from Prospect Park, stop at a library on the way",
+];
+const EXAMPLE_PROMPT_INTERVAL_MS = 3500;
+
+/** Small inline spinner -- used on the generate button so the loading state reads as active work, not a frozen click. */
+function Spinner({ className = "" }) {
+  return (
+    <svg className={`animate-spin h-4 w-4 ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
 
 const VARIANT_META = {
   greenest: { color: "#16a34a", scoreKey: "greeneryScore" },
