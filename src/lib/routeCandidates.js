@@ -5,44 +5,11 @@ const BASE_BEARINGS = [20, 110, 200, 290]; // spread candidates around the compa
 const TOLERANCE = 0.35; // how far from target distance is still "close enough"
 
 /**
- * Generates loop-shaped candidate routes of roughly targetDistanceMeters,
- * starting and ending at `start`. Each candidate is a triangular loop
- * (start -> A -> B -> start) sent to Mapbox Directions for a real
- * street-network walking route, then filtered to ones close to the target
- * distance — the API can't guarantee exact loop length, so we generate a
- * few and keep what's usable.
- *
- * If `stop` is given (a required waypoint, e.g. a coffee shop, library, or
- * a parsed `end` location), every candidate is forced to pass through it in
- * place of the first generated point — no smart placement, just "the route
- * must pass through this point."
- *
- * Returns { candidates, feasibility }. `feasibility.feasible` is false when
- * the required waypoint makes the requested distance unreachable — either
- * because it's too far for any loop of that size (a straight there-and-back
- * already blows past the target) or because the best candidate still lands
- * well outside tolerance. The caller should surface `feasibility` to the
- * user rather than silently presenting an off-target route as if it matched
- * the request.
+ * Loop-shaped candidates: start -> [stop] -> B -> start. Used whenever no
+ * distinct `end` is given — the classic Tier 0/1/2 shape.
  */
-export async function generateCandidateRoutes(start, targetDistanceMeters, count = 4, stop = null) {
-  if (stop) {
-    const directMeters = haversineDistance(start.lat, start.lng, stop.lat, stop.lng);
-    const minRoundTrip = directMeters * 2; // straight-line lower bound; real streets will be longer
-
-    if (minRoundTrip > targetDistanceMeters * (1 + TOLERANCE)) {
-      // No loop of the requested size can make sense here — adding an
-      // arbitrary extra detour on top would only make it worse. Fall back
-      // to the single most direct route through the waypoint instead.
-      const route = await getWalkingRoute([start, stop, start]);
-      return {
-        candidates: route ? [{ bearing: null, route }] : [],
-        feasibility: { feasible: false, reason: "too_far", directMeters, targetDistanceMeters },
-      };
-    }
-  }
-
-  const legRadius = targetDistanceMeters / 3; // 3 legs roughly summing to target
+async function generateLoopCandidates(start, targetDistanceMeters, count, stop) {
+  const legRadius = targetDistanceMeters / 3;
 
   const attempts = BASE_BEARINGS.slice(0, count).map(async (bearing) => {
     const a = stop ? { lat: stop.lat, lng: stop.lng } : destinationPoint(start.lat, start.lng, bearing, legRadius);
@@ -57,13 +24,110 @@ export async function generateCandidateRoutes(start, targetDistanceMeters, count
   });
 
   const results = (await Promise.all(attempts)).filter(Boolean);
-
-  // Keep candidates within tolerance of the target distance if possible; if
-  // none qualify, fall back to whatever we got rather than returning nothing.
   const withinTolerance = results.filter(
     (r) => Math.abs(r.route.distanceMeters - targetDistanceMeters) / targetDistanceMeters <= TOLERANCE
   );
-  const candidates = withinTolerance.length > 0 ? withinTolerance : results;
+  return withinTolerance.length > 0 ? withinTolerance : results;
+}
+
+/**
+ * Point-to-point candidates: start -> [stop] -> end. The route genuinely
+ * terminates at `end` — it never loops back to start. If the direct path
+ * (through `stop` if given) is shorter than the target, a detour point is
+ * added off the start->end line, at a few bearings, to stretch toward the
+ * target while still actually ending at `end`. If the direct path already
+ * meets or exceeds the target, it's used as-is (a fixed two-point route
+ * can't be shortened).
+ */
+async function generatePointToPointCandidates(start, end, targetDistanceMeters, count, stop) {
+  const throughPoints = stop ? [start, stop, end] : [start, end];
+  const directRoute = await getWalkingRoute(throughPoints);
+  if (!directRoute) {
+    return { candidates: [], feasibility: { feasible: false, reason: "no_route" } };
+  }
+
+  if (directRoute.distanceMeters >= targetDistanceMeters) {
+    const deviation = (directRoute.distanceMeters - targetDistanceMeters) / targetDistanceMeters;
+    const feasible = deviation <= TOLERANCE;
+    return {
+      candidates: [{ bearing: null, route: directRoute }],
+      feasibility: feasible
+        ? { feasible: true }
+        : { feasible: false, reason: "too_far", directMeters: directRoute.distanceMeters },
+    };
+  }
+
+  // Direct path is shorter than target: stretch it with a detour off the
+  // start->end midpoint, tried at a few bearings for variety.
+  const midLat = (start.lat + end.lat) / 2;
+  const midLng = (start.lng + end.lng) / 2;
+  const extraNeeded = targetDistanceMeters - directRoute.distanceMeters;
+  const detourRadius = extraNeeded / 2; // rough: out to the detour point and back on line
+
+  const attempts = BASE_BEARINGS.slice(0, count).map(async (bearing) => {
+    const detour = destinationPoint(midLat, midLng, bearing, detourRadius);
+    const points = stop ? [start, stop, detour, end] : [start, detour, end];
+    try {
+      const route = await getWalkingRoute(points);
+      if (!route) return null;
+      return { bearing, route };
+    } catch {
+      return null;
+    }
+  });
+
+  const results = (await Promise.all(attempts)).filter(Boolean);
+  const withinTolerance = results.filter(
+    (r) => Math.abs(r.route.distanceMeters - targetDistanceMeters) / targetDistanceMeters <= TOLERANCE
+  );
+  const candidates =
+    withinTolerance.length > 0 ? withinTolerance : results.length > 0 ? results : [{ bearing: null, route: directRoute }];
+
+  const bestDistanceMeters = Math.min(...candidates.map((c) => c.route.distanceMeters));
+  const bestDeviation = Math.abs(bestDistanceMeters - targetDistanceMeters) / targetDistanceMeters;
+
+  return {
+    candidates,
+    feasibility: {
+      feasible: bestDeviation <= TOLERANCE,
+      reason: "detour_added",
+      directMeters: directRoute.distanceMeters,
+      bestDistanceMeters,
+    },
+  };
+}
+
+/**
+ * Generates candidate routes of roughly targetDistanceMeters from `start`.
+ * If `end` is given, the route genuinely terminates there (point-to-point);
+ * otherwise it loops back to `start`. `stop` is an independent required
+ * waypoint (e.g. a coffee shop) that applies in either shape — "on the way"
+ * either around the loop or en route to `end`.
+ *
+ * Returns { candidates, feasibility }. `feasibility.reason` explains any
+ * distance mismatch worth surfacing to the user ("too_far": even the most
+ * direct option exceeds the target; "detour_added": the direct path was
+ * shorter than target, so we added a stretch; "off_target": loop mode
+ * couldn't get within tolerance despite trying).
+ */
+export async function generateCandidateRoutes(start, targetDistanceMeters, count = 4, stop = null, end = null) {
+  if (end) {
+    return generatePointToPointCandidates(start, end, targetDistanceMeters, count, stop);
+  }
+
+  if (stop) {
+    const directMeters = haversineDistance(start.lat, start.lng, stop.lat, stop.lng);
+    const minRoundTrip = directMeters * 2;
+    if (minRoundTrip > targetDistanceMeters * (1 + TOLERANCE)) {
+      const route = await getWalkingRoute([start, stop, start]);
+      return {
+        candidates: route ? [{ bearing: null, route }] : [],
+        feasibility: { feasible: false, reason: "too_far", directMeters },
+      };
+    }
+  }
+
+  const candidates = await generateLoopCandidates(start, targetDistanceMeters, count, stop);
 
   let feasibility = { feasible: true };
   if (stop && candidates.length > 0) {
@@ -75,7 +139,6 @@ export async function generateCandidateRoutes(start, targetDistanceMeters, count
         reason: "off_target",
         directMeters: haversineDistance(start.lat, start.lng, stop.lat, stop.lng),
         bestDistanceMeters,
-        targetDistanceMeters,
       };
     }
   }
