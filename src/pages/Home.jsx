@@ -710,7 +710,7 @@ export default function Home() {
                   label="Running Quality"
                   value={winner.breakdown.runningQualityScore}
                   suffix="/100"
-                  color="#2563eb"
+                  color="#c2703d"
                   evidence={runningQualityEvidence(winner.breakdown, winner.route.distanceMeters, result.targetMeters)}
                 />
               </div>
