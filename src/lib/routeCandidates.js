@@ -10,12 +10,17 @@ const BASE_BEARINGS = [20, 110, 200, 290]; // spread candidates around the compa
  * street-network walking route, then filtered to ones close to the target
  * distance — the API can't guarantee exact loop length, so we generate a
  * few and keep what's usable.
+ *
+ * If `stop` is given (a required waypoint, e.g. a coffee shop or library),
+ * every candidate is forced to pass through it in place of the first
+ * generated point — no smart placement, just "the route must pass through
+ * this point," per Tier 1 scope.
  */
-export async function generateCandidateRoutes(start, targetDistanceMeters, count = 4) {
+export async function generateCandidateRoutes(start, targetDistanceMeters, count = 4, stop = null) {
   const legRadius = targetDistanceMeters / 3; // 3 legs roughly summing to target
 
   const attempts = BASE_BEARINGS.slice(0, count).map(async (bearing) => {
-    const a = destinationPoint(start.lat, start.lng, bearing, legRadius);
+    const a = stop ? { lat: stop.lat, lng: stop.lng } : destinationPoint(start.lat, start.lng, bearing, legRadius);
     const b = destinationPoint(start.lat, start.lng, bearing + 130, legRadius);
     try {
       const route = await getWalkingRoute([start, a, b, start]);
