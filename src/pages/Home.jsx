@@ -184,7 +184,13 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
   }
 
   setStatus("generating");
-  const { candidates, feasibility } = await generateCandidateRoutes(start, targetMeters, stop, end);
+  const { candidates, feasibility } = await generateCandidateRoutes(
+    start,
+    targetMeters,
+    stop,
+    end,
+    stopPlacement?.fraction ?? 0.5
+  );
   if (candidates.length === 0) {
     const targetMi = (targetMeters / METERS_PER_MILE).toFixed(2);
     if (feasibility?.reason === "no_plausible_route") {
