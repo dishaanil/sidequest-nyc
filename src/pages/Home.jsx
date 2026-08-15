@@ -48,6 +48,25 @@ const PREFERENCE_LABEL = {
   balanced: "a balanced route",
 };
 
+// Not computed from a routing API's turn-by-turn timing -- a reasonable
+// jogging pace assumption (10-11 min/mile), used only to give a ballpark
+// "how long will this take" figure alongside distance.
+const PACE_MIN_PER_MILE = 10.5;
+
+function estimateDuration(distanceMeters) {
+  const minutes = Math.round((distanceMeters / METERS_PER_MILE) * PACE_MIN_PER_MILE);
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}h ${m}m`;
+}
+
+const POSITION_CATEGORY_SHORT_PHRASE = {
+  early: "early in your run",
+  middle: "midway through your run",
+  late: "near the end of your run",
+};
+
 /** Joins phrases as "A", "A and B", or "A, B, and C". */
 function joinParts(parts) {
   if (parts.length === 0) return "";
