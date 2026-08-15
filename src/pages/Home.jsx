@@ -14,6 +14,9 @@ import { findNearestStop } from "@/lib/stopFinder";
 import { parseNaturalLanguageRequest } from "@/lib/nlParser";
 import { rankByComposite } from "@/lib/compositeScoring";
 import { mapWithConcurrency } from "@/lib/concurrency";
+import { explainRouteChoice } from "@/lib/explainRoute";
+import { getVariantLabels } from "@/lib/variantLabels";
+import { positionAlongRouteFraction } from "@/lib/geo";
 
 const METERS_PER_MILE = 1609.34;
 const NL_SUPPORTED_STOP_TYPES = ["coffee", "library"]; // matches stopFinder.js's FINDERS keys
@@ -24,12 +27,13 @@ const STATUS_LABEL = {
   resolvingWaypoint: "Finding a stop along the way…",
   generating: "Generating candidate routes…",
   scoring: "Scoring routes against NYC open data…",
+  explaining: "Explaining the choice…",
 };
 
 const VARIANT_META = {
-  greenest: { label: "Greenest", color: "#16a34a", scoreKey: "greeneryScore" },
-  scenic: { label: "Most Scenic", color: "#a855f7", scoreKey: "scenicScore" },
-  efficient: { label: "Most Efficient", color: "#2563eb", scoreKey: "runningQualityScore" },
+  greenest: { color: "#16a34a", scoreKey: "greeneryScore" },
+  scenic: { color: "#a855f7", scoreKey: "scenicScore" },
+  efficient: { color: "#2563eb", scoreKey: "runningQualityScore" },
 };
 const VARIANT_ORDER = ["greenest", "scenic", "efficient"];
 
