@@ -748,8 +748,8 @@ export default function Home() {
 
         {result && (
           <div className="space-y-2.5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Other options to consider</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Other options to consider</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {(() => {
                 const stopKindForLabel = result.stopSource?.startsWith("stop_type:") ? result.stopSource.split(":")[1] : null;
                 const labels = getVariantLabels(result.preferenceEmphasis, stopKindForLabel);
@@ -762,9 +762,9 @@ export default function Home() {
                       ? runningQualityEvidence(v.breakdown, v.route.distanceMeters, result.targetMeters)
                       : variantExplanation(key, v);
                   return (
-                    <Card key={key} className="flex flex-col overflow-hidden shadow-sm">
+                    <Card key={key} className="flex flex-col overflow-hidden border-stone-200 shadow-sm">
                       <CardHeader className="py-2.5 px-3.5">
-                        <CardTitle className="text-sm font-semibold" style={{ color: meta.color }}>
+                        <CardTitle className="font-heading text-sm font-semibold" style={{ color: meta.color }}>
                           {label}
                         </CardTitle>
                       </CardHeader>
@@ -782,11 +782,11 @@ export default function Home() {
                             <RouteMarkers result={result} />
                           </MapContainer>
                         </div>
-                        <div className="text-sm font-semibold text-slate-800">
+                        <div className="text-sm font-semibold text-stone-800">
                           {(v.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi
                         </div>
                         <MiniScoreRow breakdown={v.breakdown} primaryKey={meta.scoreKey} />
-                        <p className="text-xs text-slate-400 leading-snug">{evidence}</p>
+                        <p className="text-xs text-stone-400 leading-snug">{evidence}</p>
                       </CardContent>
                     </Card>
                   );
@@ -797,7 +797,7 @@ export default function Home() {
         )}
 
         {result && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-stone-500">
             Tree data is a 2015–2016 snapshot from NYC Open Data, not a live feed. Landmark, park, and
             waterfront-access data reflect current designations but may lag real-world changes
             slightly — actual conditions may differ.
