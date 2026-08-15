@@ -153,7 +153,13 @@ export async function computeScoreBreakdown(routeCoords, routeDistanceMeters, ta
   const waterfrontScore = clampScore(waterfrontExposure * 100);
   const parkScore = clampScore(parkExposure * 100);
 
-  const scenicScore = clampScore(0.35 * waterfrontScore + 0.25 * parkScore + 0.2 * landmarkScore + 0.2 * greeneryScore);
+  // Scenic's "greenery" term uses tree density ONLY, not the full
+  // greenery_score — greenery_score already folds in park exposure (0.4
+  // weight), so reusing it here would double-count park (effective weight
+  // 0.25 + 0.20*0.4 = 0.33 instead of the stated 0.25). Excluding it keeps
+  // park's effective weight in Scenic exactly at 0.25.
+  const greeneryForScenic = clampScore(treeDensityScore);
+  const scenicScore = clampScore(0.35 * waterfrontScore + 0.25 * parkScore + 0.2 * landmarkScore + 0.2 * greeneryForScenic);
 
   const deviation = Math.abs(routeDistanceMeters - targetDistanceMeters) / targetDistanceMeters;
   const runningQualityScore = clampScore(Math.max(0, 1 - deviation / DISTANCE_SATURATION) * 100);
@@ -162,7 +168,7 @@ export async function computeScoreBreakdown(routeCoords, routeDistanceMeters, ta
     greeneryScore,
     scenicScore,
     runningQualityScore,
-    components: { landmarkScore, waterfrontScore, parkScore },
+    components: { landmarkScore, waterfrontScore, parkScore, greeneryForScenic },
     evidence: {
       treeCount: treesNearRoute.length,
       treeBufferMeters: TREE_BUFFER_METERS,
