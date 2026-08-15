@@ -1,4 +1,5 @@
 import { bearingBetween, routeBoundingBox } from "./geo";
+import { fetchJsonWithRetry } from "./httpRetry";
 
 const TREE_DATASET_ID = "uvpi-gqnh"; // 2015 Street Tree Census
 const LANDMARK_DATASET_ID = "ncre-qhxs"; // Designated and Calendared Buildings and Sites
@@ -18,12 +19,14 @@ async function queryLatLngPoints(datasetId, bbox) {
     ].join(" AND ")
   );
   url.searchParams.set("$limit", "2000");
-  const res = await fetch(url.toString());
-  if (!res.ok) return [];
-  const rows = await res.json();
-  return rows
-    .map((r) => ({ lat: parseFloat(r.latitude), lng: parseFloat(r.longitude) }))
-    .filter((p) => !Number.isNaN(p.lat) && !Number.isNaN(p.lng));
+  try {
+    const rows = await fetchJsonWithRetry(url.toString());
+    return rows
+      .map((r) => ({ lat: parseFloat(r.latitude), lng: parseFloat(r.longitude) }))
+      .filter((p) => !Number.isNaN(p.lat) && !Number.isNaN(p.lng));
+  } catch {
+    return []; // bias is a nice-to-have; degrade to an even bearing spread instead of failing
+  }
 }
 
 async function queryWaterfrontPoints(bbox) {
@@ -34,12 +37,14 @@ async function queryWaterfrontPoints(bbox) {
     `within_box(the_geom, ${bbox.maxLat}, ${bbox.minLng}, ${bbox.minLat}, ${bbox.maxLng})`
   );
   url.searchParams.set("$limit", "2000");
-  const res = await fetch(url.toString());
-  if (!res.ok) return [];
-  const rows = await res.json();
-  return rows
-    .map((r) => ({ lat: r.the_geom?.coordinates?.[1], lng: r.the_geom?.coordinates?.[0] }))
-    .filter((p) => typeof p.lat === "number" && typeof p.lng === "number");
+  try {
+    const rows = await fetchJsonWithRetry(url.toString());
+    return rows
+      .map((r) => ({ lat: r.the_geom?.coordinates?.[1], lng: r.the_geom?.coordinates?.[0] }))
+      .filter((p) => typeof p.lat === "number" && typeof p.lng === "number");
+  } catch {
+    return [];
+  }
 }
 
 function sectorIndex(bearingDeg) {
