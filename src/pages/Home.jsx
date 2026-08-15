@@ -5,15 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { geocodeAddress } from "@/lib/mapboxApi";
 import { generateCandidateRoutes } from "@/lib/routeCandidates";
 import { scoreRouteForTrees } from "@/lib/treeScoring";
+import { findNearestStop } from "@/lib/stopFinder";
 
 const METERS_PER_MILE = 1609.34;
 const DEFAULT_CENTER = [40.7484, -73.9857]; // Midtown Manhattan, shown before a route exists
 
 const STATUS_LABEL = {
   geocoding: "Finding your starting point…",
+  findingStop: "Finding a stop along the way…",
   generating: "Generating candidate routes…",
   scoring: "Scoring routes against NYC tree data…",
 };
@@ -21,11 +24,16 @@ const STATUS_LABEL = {
 export default function Home() {
   const [address, setAddress] = useState("");
   const [distanceMiles, setDistanceMiles] = useState("2");
-  const [status, setStatus] = useState("idle"); // idle | geocoding | generating | scoring | done | error
+  const [stopType, setStopType] = useState("none"); // none | coffee | library
+  const [status, setStatus] = useState("idle"); // idle | geocoding | findingStop | generating | scoring | done | error
   const [error, setError] = useState(null);
-  const [result, setResult] = useState(null); // { start, route, score, candidateCount }
+  const [result, setResult] = useState(null); // { start, route, score, candidateCount, stop }
 
-  const isLoading = status === "geocoding" || status === "generating" || status === "scoring";
+  const isLoading =
+    status === "geocoding" ||
+    status === "findingStop" ||
+    status === "generating" ||
+    status === "scoring";
 
   const handleGenerate = async (e) => {
     e.preventDefault();
