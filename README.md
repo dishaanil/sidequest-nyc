@@ -10,6 +10,16 @@ Greenery/Scenic/Running Quality number shown to the user is computed determinist
 from actual tree, park, landmark, and waterfront-access records pulled live from NYC's
 Socrata API — an LLM never invents a score.
 
+**This is not Google Maps.** Sidequest doesn't do turn-by-turn navigation and it
+doesn't narrate the scenery in descriptive terms — it will never tell you "you'll pass
+a majestic 19th-century building" or "there's a beautiful waterfront view here."
+Instead of a written description of what a route looks like, every route comes with a
+quantitative Greenery/Scenic score backed by real counts and percentages: how many
+trees are actually near the route, what fraction of it runs along the waterfront, how
+much of it sits near designated historic landmarks, how much of it borders park space.
+The scenery is expressed as evidence-backed numbers to compare routes by, not as
+prose describing what you'll see.
+
 ---
 
 ## What it does
