@@ -199,7 +199,9 @@ export default function Home() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea
-              placeholder='e.g. "I\'m starting at Union Square, ending at Washington Square, run 2 miles, stop at a coffee shop on the way, and I want my route to be as green as possible."'
+              placeholder={
+                'e.g. "I’m starting at Union Square, ending at Washington Square, run 2 miles, stop at a coffee shop on the way, and I want my route to be as green as possible."'
+              }
               value={nlText}
               onChange={(e) => setNlText(e.target.value)}
               rows={3}
