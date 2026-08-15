@@ -4,7 +4,7 @@
 // store only reaches backend functions, not the Vite frontend build, so a
 // build-time secret isn't an option here — confirmed by testing.)
 const MAPBOX_TOKEN =
-  "pk.eyJ1IjoiZGlzaGFuaWwiLCJhIjoiY21zdWw4YzNzMGh5djJ5cHBoM3BmZWFsZyJ9.KpA4uMWfZYDV6CT2DF-b7A";
+  "pk.eyJ1IjoiZGlzaGFuaWwiLCJhIjoiY21zdWk2OGk5MHZkejJ5cHpiaTkybzg2cSJ9.TXJ0dETLPo4VBOXhpHkSGA";
 
 const NYC_BBOX = "-74.26,40.49,-73.68,40.92"; // roughly all five boroughs
 
