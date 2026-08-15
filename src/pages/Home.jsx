@@ -656,7 +656,7 @@ export default function Home() {
         </Card>
 
         {result && winner && (
-          <Card className="border-2 border-slate-900 overflow-hidden">
+          <Card className="border-2 border-primary overflow-hidden">
             <div className="h-[460px] sm:h-[540px] w-full">
               <MapContainer center={[result.start.lat, result.start.lng]} zoom={14} className="h-full w-full">
                 <TileLayer
@@ -673,8 +673,8 @@ export default function Home() {
 
             <CardContent className="space-y-5 pt-6 pb-6">
               <div>
-                <CardTitle className="text-2xl">Best Match</CardTitle>
-                <p className="text-sm text-slate-600 mt-1">{introSentence(result) || "Here's your generated route."}</p>
+                <CardTitle className="font-heading text-2xl font-bold tracking-tight">Best Match</CardTitle>
+                <p className="text-sm text-stone-600 mt-1">{introSentence(result) || "Here's your generated route."}</p>
               </div>
 
               {winner.breakdown.runningQualityScore < LOW_RUNNING_QUALITY_THRESHOLD && (
@@ -686,7 +686,7 @@ export default function Home() {
                 </p>
               )}
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-5 py-4 border-y border-slate-100">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-5 py-4 border-y border-stone-100">
                 <StatTile label="Distance" value={(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} suffix="mi" />
                 <StatTile label="Est. Time" value={estimateDuration(winner.route.distanceMeters)} />
                 <StatTile
