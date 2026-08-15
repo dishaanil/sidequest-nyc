@@ -131,9 +131,25 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
   }
 
   setStatus("generating");
-  const candidates = await generateCandidateRoutes(start, targetMeters, CANDIDATE_COUNT, waypoint);
+  const { candidates, feasibility } = await generateCandidateRoutes(start, targetMeters, CANDIDATE_COUNT, waypoint);
   if (candidates.length === 0) {
     throw new Error("Couldn't generate any walking routes from that starting point.");
+  }
+
+  if (feasibility && !feasibility.feasible) {
+    const stopLabel = waypoint?.name || waypoint?.placeName || "the required stop";
+    const directMi = (feasibility.directMeters / METERS_PER_MILE).toFixed(2);
+    const targetMi = (feasibility.targetDistanceMeters / METERS_PER_MILE).toFixed(2);
+    if (feasibility.reason === "too_far") {
+      notes.push(
+        `${startQuery} to ${stopLabel} is ${directMi}mi direct — I can't build a ${targetMi}mi loop through it, so here's the most direct route between them instead.`
+      );
+    } else {
+      const bestMi = (feasibility.bestDistanceMeters / METERS_PER_MILE).toFixed(2);
+      notes.push(
+        `${startQuery} to ${stopLabel} is ${directMi}mi direct — I couldn't hit ${targetMi}mi through it, so here's the closest reasonable route (${bestMi}mi) instead.`
+      );
+    }
   }
 
   setStatus("scoring");
