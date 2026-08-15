@@ -1,4 +1,5 @@
 import { pointToRouteDistanceMeters, routeBoundingBox } from "./geo";
+import { fetchJsonWithRetry } from "./httpRetry";
 
 const LANDMARK_DATASET_ID = "ncre-qhxs"; // Designated and Calendared Buildings and Sites
 const WATERFRONT_DATASET_ID = "9y58-8zvz"; // Waterfront Public Access Areas (WPAAs) — Access Points
@@ -17,9 +18,7 @@ async function queryLandmarks(bbox) {
   );
   url.searchParams.set("$limit", "2000");
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Landmark query failed: ${res.status}`);
-  const rows = await res.json();
+  const rows = await fetchJsonWithRetry(url.toString());
   return rows
     .map((r) => ({ name: r.lm_name, lat: parseFloat(r.latitude), lng: parseFloat(r.longitude) }))
     .filter((r) => !Number.isNaN(r.lat) && !Number.isNaN(r.lng));
@@ -35,9 +34,7 @@ async function queryWaterfront(bbox) {
   );
   url.searchParams.set("$limit", "2000");
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Waterfront access query failed: ${res.status}`);
-  const rows = await res.json();
+  const rows = await fetchJsonWithRetry(url.toString());
   return rows
     .map((r) => ({
       name: r.wpaa_name,
