@@ -53,10 +53,12 @@ function Spinner({ className = "" }) {
 }
 
 /**
- * Brand mark: a simple flat stick-figure runner mid-stride, carrying a small
- * pack on their back -- the "running + carrying something" idea behind
- * "Sidequest", in the same thin-stroke line style as the rest of the icon
- * usage in the app (not a detailed/filled illustration).
+ * Brand mark: a simple flat stick-figure runner in a dynamic mid-stride
+ * pose -- bent, swinging arms and a driving front knee / kicked-back trail
+ * leg, not a standing figure -- in the same thin-stroke line style as the
+ * rest of the icon usage in the app (not a detailed/filled illustration).
+ * Mirrors the favicon markup in index.html so the brand mark matches
+ * across the header and the browser tab.
  */
 function RunnerIcon({ className = "" }) {
   return (
@@ -65,18 +67,17 @@ function RunnerIcon({ className = "" }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={2}
+      strokeWidth={2.5}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <circle cx="14" cy="4" r="1.6" />
-      <path d="M13.3 5.6 10.5 12.5" />
-      <path d="M12 7.5 9.8 9.2" />
-      <path d="M12 7.5 15.5 6.8" />
-      <path d="M10.5 12.5 7.3 14.5 5 18.5" />
-      <path d="M10.5 12.5 13 14.8 11.8 19" />
-      <rect x="8.7" y="8" width="2.6" height="3.6" rx="0.8" />
+      <circle cx="15" cy="4.2" r="1.7" />
+      <path d="M14.2 5.9 10.8 12.8" />
+      <path d="M12.6 7.9 9.8 6.9 11 9.3" />
+      <path d="M12.6 7.9 15.8 8.9 14.8 11.6" />
+      <path d="M10.8 12.8 6.5 12.1 6.8 15.6" />
+      <path d="M10.8 12.8 13.8 14.1 12 18.6" />
     </svg>
   );
 }
