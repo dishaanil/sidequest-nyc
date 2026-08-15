@@ -668,6 +668,13 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background p-6 sm:p-10">
       <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-stone-600">Hey Disha! 👋 Ready for a run?</p>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-heading text-xs font-semibold">
+            D
+          </div>
+        </div>
+
         <div className="flex items-center gap-3.5">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
             <TreePine className="h-6 w-6" strokeWidth={2.25} />
@@ -679,6 +686,18 @@ export default function Home() {
             <p className="text-stone-500 text-sm">
               Generate a running route scored against real NYC open data.
             </p>
+          </div>
+        </div>
+
+        <div className="space-y-2.5">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Your Runs</h2>
+            <span className="text-xs text-stone-400">{PAST_RUNS.length} recent</span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {PAST_RUNS.map((run) => (
+              <PastRunCard key={run.id} run={run} />
+            ))}
           </div>
         </div>
 
