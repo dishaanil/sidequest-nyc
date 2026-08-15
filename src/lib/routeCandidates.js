@@ -34,7 +34,7 @@ async function biasedBearingsAround(center, radiusMeters) {
 }
 
 /** Splits candidates into whichever tolerance tier (preferred, then max) actually has qualifiers. */
-function filterByTolerance(results, targetDistanceMeters) {
+export function filterByTolerance(results, targetDistanceMeters) {
   const deviationOf = (r) => Math.abs(r.route.distanceMeters - targetDistanceMeters) / targetDistanceMeters;
 
   const preferred = results.filter((r) => deviationOf(r) <= TOLERANCE_PREFERRED);
@@ -89,7 +89,7 @@ function areNearDuplicates(a, b) {
 }
 
 /** Keeps the first occurrence of each geometrically-distinct route, dropping near-duplicates. */
-function dedupeCandidates(candidates) {
+export function dedupeCandidates(candidates) {
   const kept = [];
   for (const c of candidates) {
     if (!kept.some((k) => areNearDuplicates(k, c))) kept.push(c);
