@@ -584,7 +584,7 @@ export default function Home() {
         </Card>
 
         {result && winner && (
-          <Card className="border-2 border-slate-900 overflow-hidden py-0 gap-0">
+          <Card className="border-2 border-slate-900 overflow-hidden">
             <div className="h-[460px] sm:h-[540px] w-full">
               <MapContainer center={[result.start.lat, result.start.lng]} zoom={14} className="h-full w-full">
                 <TileLayer
