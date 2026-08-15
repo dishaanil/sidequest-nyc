@@ -87,6 +87,41 @@ export function pointToRouteDistanceMeters(lat, lng, routeCoords, refLat, refLng
   return min;
 }
 
+/** Evenly resamples a route polyline to n points by cumulative distance. */
+export function sampleAlongRoute(coords, n) {
+  if (coords.length <= n) return coords;
+  const total = routeLengthMeters(coords);
+  const step = total / (n - 1);
+  const samples = [coords[0]];
+  let acc = 0;
+  let targetDist = step;
+  for (let i = 1; i < coords.length && samples.length < n - 1; i++) {
+    const [lng1, lat1] = coords[i - 1];
+    const [lng2, lat2] = coords[i];
+    const segLen = haversineDistance(lat1, lng1, lat2, lng2);
+    while (acc + segLen >= targetDist && samples.length < n - 1) {
+      const t = segLen === 0 ? 0 : (targetDist - acc) / segLen;
+      samples.push([lng1 + (lng2 - lng1) * t, lat1 + (lat2 - lat1) * t]);
+      targetDist += step;
+    }
+    acc += segLen;
+  }
+  samples.push(coords[coords.length - 1]);
+  return samples;
+}
+
+/** Ray-casting point-in-polygon test. `ring` is [[lng,lat], ...] (outer ring; holes ignored). */
+export function pointInPolygonRing(lat, lng, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [lngI, latI] = ring[i];
+    const [lngJ, latJ] = ring[j];
+    const intersects = latI > lat !== latJ > lat && lng < ((lngJ - lngI) * (lat - latI)) / (latJ - latI) + lngI;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
 export function routeBoundingBox(coords, paddingMeters = 0) {
   let minLat = Infinity,
     maxLat = -Infinity,
