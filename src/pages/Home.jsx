@@ -504,11 +504,17 @@ export default function Home() {
         {result && winner && (
           <Card className="border-2 border-slate-900">
             <CardHeader>
-              <CardTitle className="text-xl">Your Route</CardTitle>
+              <CardTitle className="text-xl">Best Match</CardTitle>
               <p className="text-sm text-slate-600">
                 <strong>{(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi</strong>
                 {introSentence(result) ? ` — ${introSentence(result)}` : "."}
               </p>
+              {result.whyExplanation && (
+                <p className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 mt-2">
+                  <strong>Why Sidequest chose this: </strong>
+                  {result.whyExplanation}
+                </p>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg overflow-hidden border border-slate-200 h-[400px]">
@@ -552,21 +558,25 @@ export default function Home() {
           <div className="space-y-3">
             <h2 className="text-sm font-medium text-slate-500">Other options to consider</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {VARIANT_ORDER.map((key) => {
-                const v = result[key];
-                const meta = VARIANT_META[key];
-                const score = v.breakdown[meta.scoreKey];
-                const evidence =
-                  key === "efficient"
-                    ? runningQualityEvidence(v.breakdown, v.route.distanceMeters, result.targetMeters)
-                    : variantExplanation(key, v);
-                return (
-                  <Card key={key}>
-                    <CardHeader>
-                      <CardTitle className="text-base" style={{ color: meta.color }}>
-                        {meta.label}
-                      </CardTitle>
-                    </CardHeader>
+              {(() => {
+                const stopKindForLabel = result.stopSource?.startsWith("stop_type:") ? result.stopSource.split(":")[1] : null;
+                const labels = getVariantLabels(result.preferenceEmphasis, stopKindForLabel);
+                return VARIANT_ORDER.map((key) => {
+                  const v = result[key];
+                  const meta = VARIANT_META[key];
+                  const label = labels[key];
+                  const score = v.breakdown[meta.scoreKey];
+                  const evidence =
+                    key === "efficient"
+                      ? runningQualityEvidence(v.breakdown, v.route.distanceMeters, result.targetMeters)
+                      : variantExplanation(key, v);
+                  return (
+                    <Card key={key}>
+                      <CardHeader>
+                        <CardTitle className="text-base" style={{ color: meta.color }}>
+                          {label}
+                        </CardTitle>
+                      </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="rounded-lg overflow-hidden border border-slate-200 h-[220px]">
                         <MapContainer center={[result.start.lat, result.start.lng]} zoom={14} className="h-full w-full">
