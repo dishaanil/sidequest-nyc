@@ -452,7 +452,9 @@ function RouteMarkers({ result }) {
 // Presentational-only mock data for the "Your Runs" dashboard section --
 // fabricated history, not backed by any real run/save logic. Coordinates are
 // hand-picked small loops near each named NYC location, not generated from
-// real routing, purely to give each thumbnail a plausible-looking path.
+// real routing, purely to give each thumbnail a plausible-looking path. Only
+// two of the four include a `stop`, on purpose -- sidequests are optional,
+// so the history should show plain scenic runs alongside ones with a stop.
 const PAST_RUNS = [
   {
     id: "prospect-park-loop",
@@ -463,7 +465,7 @@ const PAST_RUNS = [
     scoreLabel: "Greenery",
     score: 88,
     color: "#16a34a",
-    center: [40.6602, -73.969],
+    stop: { emoji: "🛒", label: "Grocery stop" },
     path: [
       [40.6602, -73.969],
       [40.6625, -73.9702],
@@ -482,7 +484,7 @@ const PAST_RUNS = [
     scoreLabel: "Scenic",
     score: 91,
     color: "#a855f7",
-    center: [40.713, -73.9715],
+    stop: null,
     path: [
       [40.7045, -73.973],
       [40.7085, -73.9722],
@@ -500,7 +502,7 @@ const PAST_RUNS = [
     scoreLabel: "Greenery",
     score: 79,
     color: "#16a34a",
-    center: [40.7865, -73.9625],
+    stop: null,
     path: [
       [40.7845, -73.9635],
       [40.786, -73.966],
@@ -519,7 +521,7 @@ const PAST_RUNS = [
     scoreLabel: "Scenic",
     score: 85,
     color: "#a855f7",
-    center: [40.7336, -74.0027],
+    stop: { emoji: "💊", label: "Pharmacy stop" },
     path: [
       [40.732, -74.005],
       [40.7345, -74.006],
@@ -529,7 +531,7 @@ const PAST_RUNS = [
       [40.732, -74.005],
     ],
   },
-];
+].map((run) => ({ ...run, bounds: boundsFromPath(run.path) }));
 
 /**
  * Compact card for a past run in the "Your Runs" dashboard section --
