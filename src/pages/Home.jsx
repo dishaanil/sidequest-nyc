@@ -16,7 +16,6 @@ import { parseNaturalLanguageRequest } from "@/lib/nlParser";
 import { rankByComposite } from "@/lib/compositeScoring";
 
 const METERS_PER_MILE = 1609.34;
-const CANDIDATE_COUNT = 4;
 const NL_SUPPORTED_STOP_TYPES = ["coffee", "library"]; // matches stopFinder.js's FINDERS keys
 
 const STATUS_LABEL = {
@@ -139,29 +138,37 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
   }
 
   setStatus("generating");
-  const { candidates, feasibility } = await generateCandidateRoutes(start, targetMeters, CANDIDATE_COUNT, stop, end);
+  const { candidates, feasibility } = await generateCandidateRoutes(start, targetMeters, stop, end);
   if (candidates.length === 0) {
     throw new Error("Couldn't generate any walking routes from that starting point.");
   }
 
-  if (feasibility?.reason) {
+  if (feasibility && (feasibility.reason || feasibility.tolerance === "max")) {
     const placeLabel = end ? end.name || end.placeName || endQuery : stop?.name || stop?.placeName || "the required stop";
-    const directMi = (feasibility.directMeters / METERS_PER_MILE).toFixed(2);
     const targetMi = (targetMeters / METERS_PER_MILE).toFixed(2);
+    const directMi = feasibility.directMeters != null ? (feasibility.directMeters / METERS_PER_MILE).toFixed(2) : null;
+    const bestMi = feasibility.bestDistanceMeters != null ? (feasibility.bestDistanceMeters / METERS_PER_MILE).toFixed(2) : null;
+
     if (feasibility.reason === "too_far") {
       notes.push(
         `${startQuery} to ${placeLabel} is ${directMi}mi direct — longer than the ${targetMi}mi you asked for, so here's the most direct route between them instead.`
       );
-    } else if (feasibility.reason === "detour_added") {
-      const bestMi = (feasibility.bestDistanceMeters / METERS_PER_MILE).toFixed(2);
+    } else if (feasibility.reason === "detour_added" && feasibility.feasible) {
       notes.push(
-        `${startQuery} to ${placeLabel} is only ${directMi}mi direct, so I added a detour to bring this route to ${bestMi}mi, closer to your ${targetMi}mi target.`
+        `${startQuery} to ${placeLabel} is only ${directMi}mi direct, so I added a detour to bring this route to ${bestMi}mi, within your ${targetMi}mi target.`
+      );
+    } else if (feasibility.reason === "detour_insufficient") {
+      notes.push(
+        `${startQuery} to ${placeLabel} is only ${directMi}mi direct — even with a detour, the closest I could get was ${bestMi}mi, outside the ±10% range around your ${targetMi}mi target.`
       );
     } else if (feasibility.reason === "off_target") {
-      const bestMi = (feasibility.bestDistanceMeters / METERS_PER_MILE).toFixed(2);
       notes.push(
-        `${startQuery} to ${placeLabel} is ${directMi}mi direct — I couldn't hit ${targetMi}mi through it, so here's the closest reasonable route (${bestMi}mi) instead.`
+        directMi != null
+          ? `${startQuery} to ${placeLabel} is ${directMi}mi direct — I couldn't hit ${targetMi}mi ±10% through it, so here's the closest reasonable route (${bestMi}mi) instead.`
+          : `Couldn't generate a loop within 10% of your requested ${targetMi}mi from ${startQuery}; showing the closest available (${bestMi}mi) instead.`
       );
+    } else if (!feasibility.reason && feasibility.tolerance === "max") {
+      notes.push(`Closest match was within 10% of your ${targetMi}mi target — couldn't find one within the preferred 5%.`);
     }
   }
 
@@ -177,7 +184,7 @@ async function runPipeline({ start: startQuery, end: endQuery, targetMeters, sto
   const greenest = [...scored].sort((a, b) => b.treeScore.treeCount - a.treeScore.treeCount)[0];
   const scenic = [...scored].sort((a, b) => b.scenicScore.total - a.scenicScore.total)[0];
   const efficient = [...scored].sort((a, b) => a.route.distanceMeters - b.route.distanceMeters)[0];
-  const composite = rankByComposite(scored, preferenceEmphasis);
+  const composite = rankByComposite(scored, preferenceEmphasis, targetMeters);
 
   return {
     start,
