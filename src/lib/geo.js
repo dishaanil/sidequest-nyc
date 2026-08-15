@@ -110,6 +110,33 @@ export function sampleAlongRoute(coords, n) {
   return samples;
 }
 
+/**
+ * Fraction (0-1) of the way along `routeCoords` (by cumulative distance)
+ * that a given point falls, approximated via its nearest vertex — good
+ * enough for "the stop is roughly N% of the way through the route" framing,
+ * not meant for precise positioning.
+ */
+export function positionAlongRouteFraction(lat, lng, routeCoords) {
+  let nearestIndex = 0;
+  let nearestDist = Infinity;
+  for (let i = 0; i < routeCoords.length; i++) {
+    const [rLng, rLat] = routeCoords[i];
+    const d = haversineDistance(lat, lng, rLat, rLng);
+    if (d < nearestDist) {
+      nearestDist = d;
+      nearestIndex = i;
+    }
+  }
+  let cumulative = 0;
+  for (let i = 1; i <= nearestIndex; i++) {
+    const [lng1, lat1] = routeCoords[i - 1];
+    const [lng2, lat2] = routeCoords[i];
+    cumulative += haversineDistance(lat1, lng1, lat2, lng2);
+  }
+  const total = routeLengthMeters(routeCoords);
+  return total > 0 ? cumulative / total : 0;
+}
+
 /** Ray-casting point-in-polygon test. `ring` is [[lng,lat], ...] (outer ring; holes ignored). */
 export function pointInPolygonRing(lat, lng, ring) {
   let inside = false;
