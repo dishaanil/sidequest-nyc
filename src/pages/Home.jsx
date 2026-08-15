@@ -138,18 +138,23 @@ function describeStopPlacement(result, winnerRoute) {
   return `${result.stop.name} was picked because it sits ${positionPhrase} the route (targeting ~${targetPct}%, landed at ${actualPct}% of the way through) — ${reason}.`;
 }
 
-/** Big number + label + one-line evidence, used for all three headline scores. */
-function ScoreTile({ label, score, evidence, color }) {
+/**
+ * Large bold value + small label underneath, used for the hero stat row
+ * (distance, time, and the three headline scores). `evidence`, when given,
+ * renders as a muted line below the label -- the "grounded in real data"
+ * detail, kept secondary to the number itself.
+ */
+function StatTile({ label, value, suffix, evidence, color }) {
   return (
     <div className="space-y-1">
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-3xl font-bold" style={{ color }}>
-          {score}
+      <div className="flex items-baseline gap-1">
+        <span className="text-3xl font-bold tabular-nums" style={color ? { color } : undefined}>
+          {value}
         </span>
-        <span className="text-sm text-slate-500">/100</span>
+        {suffix && <span className="text-sm text-slate-400">{suffix}</span>}
       </div>
-      <div className="text-xs font-medium text-slate-700">{label}</div>
-      <p className="text-xs text-slate-500">{evidence}</p>
+      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      {evidence && <p className="text-xs text-slate-400 leading-snug">{evidence}</p>}
     </div>
   );
 }
@@ -319,34 +324,41 @@ function buildComparisonStats(result) {
   return stats;
 }
 
-/** Start/stop/end markers shared by the hero card and each variant card. */
+/** Round emoji pin, rendered as a Leaflet divIcon so it needs no external icon image assets. */
+function emojiDivIcon(emoji, bgColor) {
+  return L.divIcon({
+    html: `<div style="width:30px;height:30px;border-radius:50%;background:${bgColor};border:2px solid white;box-shadow:0 1px 4px rgba(15,23,42,0.35);display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;">${emoji}</div>`,
+    className: "",
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -15],
+  });
+}
+
+/**
+ * Start/stop/end markers shared by the hero map and each variant thumbnail --
+ * distinct emoji + color per role (start, end, sidequest stop) so they read
+ * clearly at a glance instead of as same-looking dots. The stop's emoji is
+ * the same one shown in its chip (see getStopEmoji), so map and text agree.
+ */
 function RouteMarkers({ result }) {
   return (
     <>
-      <CircleMarker
-        center={[result.start.lat, result.start.lng]}
-        radius={8}
-        pathOptions={{ color: "#1d4ed8", fillColor: "#1d4ed8", fillOpacity: 1 }}
-      >
+      <Marker position={[result.start.lat, result.start.lng]} icon={emojiDivIcon("🚩", "#1d4ed8")}>
         <Popup>{result.end ? "Start" : "Start / End"}</Popup>
-      </CircleMarker>
+      </Marker>
       {result.end && (
-        <CircleMarker
-          center={[result.end.lat, result.end.lng]}
-          radius={8}
-          pathOptions={{ color: "#dc2626", fillColor: "#dc2626", fillOpacity: 1 }}
-        >
+        <Marker position={[result.end.lat, result.end.lng]} icon={emojiDivIcon("🏁", "#dc2626")}>
           <Popup>{result.end.name || result.end.placeName || "End"}</Popup>
-        </CircleMarker>
+        </Marker>
       )}
       {result.stop && (
-        <CircleMarker
-          center={[result.stop.lat, result.stop.lng]}
-          radius={8}
-          pathOptions={{ color: "#d97706", fillColor: "#d97706", fillOpacity: 1 }}
+        <Marker
+          position={[result.stop.lat, result.stop.lng]}
+          icon={emojiDivIcon(getStopEmoji(result.stop.type), "#d97706")}
         >
           <Popup>{result.stop.name || result.stop.placeName}</Popup>
-        </CircleMarker>
+        </Marker>
       )}
     </>
   );
