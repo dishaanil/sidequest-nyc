@@ -487,7 +487,9 @@ export default function Home() {
                     Understood: start "{nlParsed.start}"
                     {nlParsed.end ? `, end "${nlParsed.end}"` : ", loop back to start"}
                     {`, ${nlParsed.distance_miles} mi`}
-                    {nlParsed.stop_type ? `, ${nlParsed.stop_type} stop` : ", no stop"}
+                    {nlParsed.stop_type
+                      ? `, ${nlParsed.stop_type} stop${nlParsed.stop_position_hint ? ` (${nlParsed.stop_position_hint})` : ""}`
+                      : ", no stop"}
                     {`, ${nlParsed.preference_emphasis} preference`}.
                   </p>
                 )}
@@ -556,6 +558,12 @@ export default function Home() {
                   This route's distance is well off your target ({(winner.route.distanceMeters / METERS_PER_MILE).toFixed(2)} mi vs{" "}
                   {(result.targetMeters / METERS_PER_MILE).toFixed(2)} mi requested, {winner.breakdown.evidence.distanceDeviationPct}% off) — running quality is only{" "}
                   {winner.breakdown.runningQualityScore}/100. Scenery scores below reflect this route, not a good distance match.
+                </p>
+              )}
+              {describeStopPlacement(result, winner.route) && (
+                <p className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 mt-2">
+                  <strong>Stop placement: </strong>
+                  {describeStopPlacement(result, winner.route)}
                 </p>
               )}
               {result.whyExplanation && (
