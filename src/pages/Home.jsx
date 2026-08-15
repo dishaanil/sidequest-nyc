@@ -303,7 +303,7 @@ export default function Home() {
   const [genError, setGenError] = useState(null);
   const [result, setResult] = useState(null);
 
-  const isLoading = ["parsing", "geocoding", "resolvingWaypoint", "generating", "scoring"].includes(genStatus);
+  const isLoading = ["parsing", "geocoding", "resolvingWaypoint", "generating", "scoring", "explaining"].includes(genStatus);
 
   const handleGenerateNL = async (e) => {
     e.preventDefault();
@@ -337,7 +337,16 @@ export default function Home() {
         setStatus: setGenStatus,
       });
 
-      setResult({ ...pipelineResult, inputMode: "nl" });
+      const withMode = { ...pipelineResult, inputMode: "nl" };
+      setGenStatus("explaining");
+      let whyExplanation = null;
+      try {
+        whyExplanation = await explainRouteChoice(buildComparisonStats(withMode));
+      } catch (explainErr) {
+        console.error("explainRouteChoice failed:", explainErr);
+      }
+
+      setResult({ ...withMode, whyExplanation });
       setGenStatus("done");
     } catch (err) {
       console.error(err);
@@ -368,7 +377,16 @@ export default function Home() {
         setStatus: setGenStatus,
       });
 
-      setResult({ ...pipelineResult, inputMode: "form" });
+      const withMode = { ...pipelineResult, inputMode: "form" };
+      setGenStatus("explaining");
+      let whyExplanation = null;
+      try {
+        whyExplanation = await explainRouteChoice(buildComparisonStats(withMode));
+      } catch (explainErr) {
+        console.error("explainRouteChoice failed:", explainErr);
+      }
+
+      setResult({ ...withMode, whyExplanation });
       setGenStatus("done");
     } catch (err) {
       console.error(err);
