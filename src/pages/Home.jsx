@@ -308,6 +308,79 @@ export default function Home() {
                 {JSON.stringify(nlParsed, null, 2)}
               </pre>
             )}
+
+            {nlParsed && (
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <Button type="button" variant="outline" onClick={handleGenerateFromParsed} disabled={nlWireBusy}>
+                  {nlWireBusy ? "Generating candidates…" : "Generate & score candidates from this"}
+                </Button>
+                {nlWireError && <p className="text-sm text-red-600">{nlWireError}</p>}
+                {nlScored && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-600">
+                      Start: <strong>{nlScored.start.placeName || nlParsed.start}</strong>
+                      {nlScored.waypoint && (
+                        <>
+                          {" "}
+                          — required waypoint: <strong>{nlScored.waypoint.name || nlScored.waypoint.placeName}</strong>{" "}
+                          (from {nlScored.waypointSource})
+                        </>
+                      )}
+                    </p>
+                    {nlScored.notes.map((n, i) => (
+                      <p key={i} className="text-xs text-amber-600">
+                        {n}
+                      </p>
+                    ))}
+                    <div className="overflow-x-auto">
+                      <table className="text-xs w-full border-collapse">
+                        <thead>
+                          <tr className="text-left border-b border-slate-300">
+                            <th className="py-1 pr-3">#</th>
+                            <th className="py-1 pr-3">Bearing</th>
+                            <th className="py-1 pr-3">Distance (mi)</th>
+                            <th className="py-1 pr-3">
+                              Trees (≤{nlScored.candidates[0]?.treeScore.bufferMeters}m)
+                            </th>
+                            <th className="py-1 pr-3">
+                              Landmarks (≤{nlScored.candidates[0]?.scenicScore.bufferMeters}m)
+                            </th>
+                            <th className="py-1 pr-3">
+                              Waterfront (≤{nlScored.candidates[0]?.scenicScore.bufferMeters}m)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {nlScored.candidates.map((c, i) => (
+                            <tr key={i} className="border-b border-slate-100">
+                              <td className="py-1 pr-3">{i + 1}</td>
+                              <td className="py-1 pr-3">{c.bearing}°</td>
+                              <td className="py-1 pr-3">{(c.route.distanceMeters / METERS_PER_MILE).toFixed(2)}</td>
+                              <td className="py-1 pr-3">{c.treeScore.treeCount}</td>
+                              <td className="py-1 pr-3">{c.scenicScore.landmarkCount}</td>
+                              <td className="py-1 pr-3">{c.scenicScore.waterfrontCount}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <pre className="text-xs bg-slate-100 rounded-md p-3 overflow-x-auto">
+                      {JSON.stringify(
+                        nlScored.candidates.map((c) => ({
+                          bearing: c.bearing,
+                          distanceMeters: Math.round(c.route.distanceMeters),
+                          treeCount: c.treeScore.treeCount,
+                          landmarkCount: c.scenicScore.landmarkCount,
+                          waterfrontCount: c.scenicScore.waterfrontCount,
+                        })),
+                        null,
+                        2
+                      )}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
