@@ -156,7 +156,9 @@ async function generateLoopCandidates(start, targetDistanceMeters, stop, stopPos
  * direct path already meets or exceeds the target, it's used as-is (a fixed
  * two-point route can't be shortened).
  */
-async function generatePointToPointCandidates(start, end, targetDistanceMeters, stop) {
+const MIN_DETOUR_METERS = 50; // below this, a synthesized detour point is just noise -- skip it
+
+async function generatePointToPointCandidates(start, end, targetDistanceMeters, stop, stopPositionFraction = 0.5) {
   const throughPoints = stop ? [start, stop, end] : [start, end];
   const directRoute = await getWalkingRoute(throughPoints);
   if (!directRoute) {
@@ -177,19 +179,36 @@ async function generatePointToPointCandidates(start, end, targetDistanceMeters, 
     };
   }
 
-  // Direct path is shorter than target: stretch it with a detour off the
-  // start->end midpoint, at bias-directed and evenly-spread bearings.
-  const midLat = (start.lat + end.lat) / 2;
-  const midLng = (start.lng + end.lng) / 2;
+  // Direct path is shorter than target: stretch it with detour point(s) at
+  // bias-directed and evenly-spread bearings. Without a stop, all the extra
+  // distance is added at the start->end midpoint (as before). With a stop,
+  // the extra distance is split between the leg before it and the leg after
+  // it, weighted by stopPositionFraction -- otherwise ALL of it would land
+  // after the stop regardless of the requested position (e.g. a stop
+  // targeted at the route's midpoint would be reached almost immediately,
+  // with the entire detour appended afterward, landing it near the start).
   const extraNeeded = targetDistanceMeters - directRoute.distanceMeters;
-  const detourRadius = extraNeeded / 2;
+  const extraBefore = stop ? extraNeeded * stopPositionFraction : 0;
+  const extraAfter = stop ? extraNeeded * (1 - stopPositionFraction) : extraNeeded;
 
-  const biased = await biasedBearingsAround({ lat: midLat, lng: midLng }, detourRadius);
+  const beforeMid = stop ? { lat: (start.lat + stop.lat) / 2, lng: (start.lng + stop.lng) / 2 } : null;
+  const afterMid = stop
+    ? { lat: (stop.lat + end.lat) / 2, lng: (stop.lng + end.lng) / 2 }
+    : { lat: (start.lat + end.lat) / 2, lng: (start.lng + end.lng) / 2 };
+
+  const biased = await biasedBearingsAround(afterMid, Math.max(extraBefore, extraAfter) / 2 || 400);
   const bearings = buildBearingList(biased);
 
   const attempts = await mapWithConcurrency(bearings, ROUTE_FETCH_CONCURRENCY, async (bearing) => {
-    const detour = destinationPoint(midLat, midLng, bearing, detourRadius);
-    const points = stop ? [start, stop, detour, end] : [start, detour, end];
+    const points = [start];
+    if (extraBefore > MIN_DETOUR_METERS) {
+      points.push(destinationPoint(beforeMid.lat, beforeMid.lng, bearing, extraBefore / 2));
+    }
+    if (stop) points.push(stop);
+    if (extraAfter > MIN_DETOUR_METERS) {
+      points.push(destinationPoint(afterMid.lat, afterMid.lng, bearing, extraAfter / 2));
+    }
+    points.push(end);
     try {
       const route = await getWalkingRoute(points);
       if (!route) return null;
