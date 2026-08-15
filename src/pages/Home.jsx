@@ -189,6 +189,38 @@ export default function Home() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Try describing your run in plain English (beta)</CardTitle>
+            <p className="text-xs text-slate-500">
+              Debug view — this parses your text and shows the structured result below. It doesn't
+              generate a route yet; use the form above for that.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea
+              placeholder='e.g. "I\'m starting at Union Square, ending at Washington Square, run 2 miles, stop at a coffee shop on the way, and I want my route to be as green as possible."'
+              value={nlText}
+              onChange={(e) => setNlText(e.target.value)}
+              rows={3}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleParseNaturalLanguage}
+              disabled={nlStatus === "parsing"}
+            >
+              {nlStatus === "parsing" ? "Parsing…" : "Parse"}
+            </Button>
+            {nlError && <p className="text-sm text-red-600">{nlError}</p>}
+            {nlParsed && (
+              <pre className="text-xs bg-slate-100 rounded-md p-3 overflow-x-auto">
+                {JSON.stringify(nlParsed, null, 2)}
+              </pre>
+            )}
+          </CardContent>
+        </Card>
+
         {variants && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {VARIANT_ORDER.map((key) => {
