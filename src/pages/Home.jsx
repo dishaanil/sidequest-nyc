@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { geocodeAddress } from "@/lib/mapboxApi";
 import { generateCandidateRoutes } from "@/lib/routeCandidates";
 import { scoreRouteForTrees } from "@/lib/treeScoring";
 import { scoreRouteForScenic } from "@/lib/scenicScoring";
 import { findNearestStop } from "@/lib/stopFinder";
+import { parseNaturalLanguageRequest } from "@/lib/nlParser";
 
 const METERS_PER_MILE = 1609.34;
 const CANDIDATE_COUNT = 4;
@@ -36,6 +38,31 @@ export default function Home() {
   const [status, setStatus] = useState("idle"); // idle | geocoding | findingStop | generating | scoring | done | error
   const [error, setError] = useState(null);
   const [variants, setVariants] = useState(null); // { start, stop, candidateCount, greenest, scenic, efficient }
+
+  // --- Natural-language parsing (debug/verification step, not wired into generation yet) ---
+  const [nlText, setNlText] = useState("");
+  const [nlStatus, setNlStatus] = useState("idle"); // idle | parsing | done | error
+  const [nlError, setNlError] = useState(null);
+  const [nlParsed, setNlParsed] = useState(null);
+
+  const handleParseNaturalLanguage = async () => {
+    setNlError(null);
+    setNlParsed(null);
+    if (!nlText.trim()) {
+      setNlError("Type a description first.");
+      return;
+    }
+    setNlStatus("parsing");
+    try {
+      const parsed = await parseNaturalLanguageRequest(nlText);
+      setNlParsed(parsed);
+      setNlStatus("done");
+    } catch (err) {
+      console.error(err);
+      setNlError(err.message || "Couldn't parse that description.");
+      setNlStatus("error");
+    }
+  };
 
   const isLoading =
     status === "geocoding" ||
