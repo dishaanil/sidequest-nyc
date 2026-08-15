@@ -1,12 +1,12 @@
-// Mapbox token is injected at build/runtime via the VITE_MAPBOX_TOKEN
-// secret (Base44 secrets store) — never hardcoded here.
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+// Public Mapbox token (pk. prefix) — Mapbox's own access model expects this
+// to ship in client bundles; it's secured via URL/referrer restrictions on
+// Mapbox's dashboard, not by being kept out of source. (Base44's `secrets`
+// store only reaches backend functions, not the Vite frontend build, so a
+// build-time secret isn't an option here — confirmed by testing.)
+const MAPBOX_TOKEN =
+  "pk.eyJ1IjoiZGlzaGFuaWwiLCJhIjoiY21zdWk2OGk5MHZkejJ5cHpiaTkybzg2cSJ9.TXJ0dETLPo4VBOXhpHkSGA";
 
 const NYC_BBOX = "-74.26,40.49,-73.68,40.92"; // roughly all five boroughs
-
-if (!MAPBOX_TOKEN) {
-  console.warn("VITE_MAPBOX_TOKEN is not set — geocoding and routing will fail.");
-}
 
 export async function geocodeAddress(query) {
   const url = new URL(
