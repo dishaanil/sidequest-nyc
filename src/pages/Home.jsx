@@ -72,12 +72,12 @@ function RunnerIcon({ className = "" }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <circle cx="15" cy="4.2" r="1.7" />
-      <path d="M14.2 5.9 10.8 12.8" />
-      <path d="M12.6 7.9 9.8 6.9 11 9.3" />
-      <path d="M12.6 7.9 15.8 8.9 14.8 11.6" />
-      <path d="M10.8 12.8 6.5 12.1 6.8 15.6" />
-      <path d="M10.8 12.8 13.8 14.1 12 18.6" />
+      <circle cx="14.5" cy="3.6" r="1.8" />
+      <path d="M13.6 5.3 11 11" />
+      <path d="M12.3 7 15.2 6 16.3 8.3" />
+      <path d="M12.3 7 9.7 8 10.6 10.8" />
+      <path d="M11 11 14.5 10.3 14 14.8" />
+      <path d="M11 11 7.3 13.2 5.8 16.8" />
     </svg>
   );
 }
